@@ -18,3 +18,12 @@ venv/
 
 # OS
 .DS_Store
+
+# Generated results and logs (don't commit experiment outputs)
+data/results/
+data/processed/
+experiments/results.csv
+experiments/logs/*.log
+
+# Notebooks checkpoints
+.ipynb_checkpoints/

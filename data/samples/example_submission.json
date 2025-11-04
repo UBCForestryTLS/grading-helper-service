@@ -1,0 +1,37 @@
+{
+  "assignment_id": "FRST_200_A1_Q1",
+  "question": "Explain the role of mycorrhizal fungi in forest ecosystems and describe how they benefit tree growth.",
+  "rubric": {
+    "total_points": 10,
+    "criteria": [
+      {
+        "criterion": "Definition of mycorrhizal fungi",
+        "points": 2,
+        "description": "Correctly defines mycorrhizal fungi as symbiotic associations between fungi and plant roots"
+      },
+      {
+        "criterion": "Explanation of nutrient exchange",
+        "points": 3,
+        "description": "Explains how fungi provide nutrients (especially phosphorus and nitrogen) in exchange for carbohydrates"
+      },
+      {
+        "criterion": "Benefits to tree growth",
+        "points": 3,
+        "description": "Describes multiple benefits such as increased water uptake, disease resistance, and access to nutrients"
+      },
+      {
+        "criterion": "Real-world examples",
+        "points": 2,
+        "description": "Provides specific examples of tree-fungus relationships or forest types where this is important"
+      }
+    ]
+  },
+  "student_response": "Mycorrhizal fungi form symbiotic relationships with tree roots. The fungi help trees by increasing their ability to absorb water and nutrients from the soil, especially phosphorus which is often limited. In return, the trees provide the fungi with sugars produced through photosynthesis. This relationship is found in most forest ecosystems and is essential for tree health. For example, many pine trees cannot survive without their mycorrhizal partners, and the fungi can also help protect trees from some root diseases.",
+  "metadata": {
+    "student_id": "12345678",
+    "course": "FRST 200",
+    "assignment": "Assignment 1",
+    "question_number": 1,
+    "submission_date": "2025-10-15"
+  }
+}
