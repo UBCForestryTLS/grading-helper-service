@@ -1,17 +1,18 @@
-# Welcome to MkDocs
+# Welcome
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+These are the official documentation for the UBC Faculty of Forestry [AI Grading Helper](https://github.com/forestrytls/grading-helper-service/)
 
-## Commands
+!!! note 
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+    This interactive documentation is generated using the [Material Theme](https://squidfunk.github.io/mkdocs-material/) for [MkDocs](https://www.mkdocs.org).
 
-## Project layout
+## Inspiration to write these
+* I anyways like to write documentation :)
+* Helps me to be clear about design decisions
+* Helps prevent [scope creep](https://en.wikipedia.org/wiki/Scope_creep)
+* Might help future developers
+* Nice to look at
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+!!! Important
+
+    Although the mindful use of GenAI is not only fine but encouraged, kindly avoid updating these docs using GenAI. Writing it yourself will be beneficial.
