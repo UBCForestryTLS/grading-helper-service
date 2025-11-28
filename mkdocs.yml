@@ -1,23 +1,77 @@
-site_name: AI Grading Helper Docs (UBC Forestry) (WIP)
+site_name: AI Grading Helper Docs
+site_description: Official documentation for UBC Faculty of Forestry AI Grading Helper Service
 site_url: https://mydomain.org/mysite
+repo_url: https://github.com/forestrytls/grading-helper-service/
+repo_name: forestrytls/grading-helper-service
+
 theme:
   name: material
+  icon:
+    logo: material/pine-tree
   font:
-    text: Merriweather Sans
-    code: Red Hat Mono
+    text: Roboto
+    code: Roboto Mono
   palette:
     # Palette toggle for light mode
     - scheme: default
+      primary: green
+      accent: teal
       toggle:
         icon: material/brightness-7 
         name: Switch to dark mode
 
     # Palette toggle for dark mode
     - scheme: slate
+      primary: green
+      accent: teal
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode 
+        name: Switch to light mode
+  
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
 markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - footnotes
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/start_here.md
+  - Architecture: architecture/index.md
+  - Development: development/index.md
+  - API Reference: api/index.md
+  - Data Models: data-models/index.md
+  - Evaluation: evaluation/index.md
+  - Deployment: deployment/index.md
+  - LTI Integration: lti-integration/index.md
+  - Guides: guides/index.md
+  - Reference: reference/index.md

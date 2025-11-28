@@ -1,8 +1,8 @@
 # Start Here
 
-# Project Origins & Motivation
+## Project Origins & Motivation
 
-## Why are we making this project?
+### Why are we making this project?
 
 The TLS Large TLEF team; namely me (Akshat), Fabian, Frederick and Michelle had a meeting with an instructor for CONS 127 and NRES 241 and a senior TA for FRST 303 and FRST 304 for an initial consultation discussion on the GenAI course assistant project where we discussed our vision for the project and gathered feedback and any requests they had.
 
@@ -12,13 +12,13 @@ The TLS Large TLEF team; namely me (Akshat), Fabian, Frederick and Michelle had 
     - Each TA grades **~400 exams** per term
     - Grading time: **~80 hours** per TA, per course
 
-## Who is this project for?
+### Who is this project for?
 
 * For both instructors and TA's of Forestry courses.
 * Specially for courses that spend a large amount of TA time on grading.
 
 
-## What is gonna make this valuable?
+### What is gonna make this valuable?
 
 1. **Statistical Validation**
 2. **Instructor Trust**
@@ -26,7 +26,7 @@ The TLS Large TLEF team; namely me (Akshat), Fabian, Frederick and Michelle had 
 4. **Student Feedback**
 
 
-# User Stories
+## User Stories
 
 !!! note ""
     Simple statements what the users are able to do with the application (Ideally non technical statements)
