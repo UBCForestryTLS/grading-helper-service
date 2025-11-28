@@ -27,3 +27,6 @@ experiments/logs/*.log
 
 # Notebooks checkpoints
 .ipynb_checkpoints/
+
+# MkDocs build output
+site/
