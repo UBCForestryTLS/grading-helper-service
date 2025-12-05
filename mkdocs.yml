@@ -67,6 +67,7 @@ nav:
   - Getting Started:
     - getting-started/start_here.md
   - Architecture: architecture/index.md
+  - Design Decisions: decisions/index.md
   - Development: development/index.md
   - API Reference: api/index.md
   - Data Models: data-models/index.md
