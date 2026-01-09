@@ -25,6 +25,10 @@ data/processed/
 experiments/results.csv
 experiments/logs/*.log
 
+# Evaluation data (contains student submissions - do not commit)
+evaluation/data/
+evaluation/results/
+
 # Notebooks checkpoints
 .ipynb_checkpoints/
 
