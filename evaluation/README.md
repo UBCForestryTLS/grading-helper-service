@@ -27,6 +27,6 @@ We test 2 prompt conditions:
 
 *Note: "LLM-Generated Rubric" was removed since short-answer questions (few words) don't need custom rubrics.*
 
-## Results (Llama 3 70B)
+## Results
 
 **Yet to run full eval so no results for now**
