@@ -30,3 +30,5 @@ experiments/logs/*.log
 
 # MkDocs build output
 site/
+
+CLAUDE.md
