@@ -14,7 +14,7 @@ from src.api.app import create_app
 def mock_table(aws_credentials):
     """Create a moto DynamoDB table and patch get_dynamodb_table to return it."""
     with mock_aws():
-        dynamodb = boto3.resource("dynamodb", region_name="us-west-2")
+        dynamodb = boto3.resource("dynamodb", region_name="ca-central-1")
         table = dynamodb.create_table(
             TableName="GradingTable",
             BillingMode="PAY_PER_REQUEST",

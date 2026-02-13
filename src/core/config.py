@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     table_name: str = "GradingTable"
     bucket_name: str = "GradingBucket"
     stage: str = "local"
-    aws_region: str = "us-west-2"
+    aws_region: str = "ca-central-1"
     powertools_service_name: str = "grading-helper"
 
     model_config = {"env_prefix": "", "case_sensitive": False}

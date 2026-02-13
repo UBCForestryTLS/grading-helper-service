@@ -14,14 +14,14 @@ def aws_credentials():
     os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
     os.environ["AWS_SECURITY_TOKEN"] = "testing"
     os.environ["AWS_SESSION_TOKEN"] = "testing"
-    os.environ["AWS_DEFAULT_REGION"] = "us-west-2"
+    os.environ["AWS_DEFAULT_REGION"] = "ca-central-1"
 
 
 @pytest.fixture
 def dynamodb_table(aws_credentials):
     """Create a mocked DynamoDB table matching template.yaml."""
     with mock_aws():
-        dynamodb = boto3.resource("dynamodb", region_name="us-west-2")
+        dynamodb = boto3.resource("dynamodb", region_name="ca-central-1")
         table = dynamodb.create_table(
             TableName="GradingTable",
             BillingMode="PAY_PER_REQUEST",
