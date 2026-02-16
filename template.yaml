@@ -47,6 +47,8 @@ Resources:
   # --- Lambda Function ---
   ApiFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
     Properties:
       Handler: src/handlers/api.handler
       CodeUri: .
