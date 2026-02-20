@@ -4,6 +4,8 @@ import os
 
 import boto3
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 from moto import mock_aws
 
 
@@ -94,3 +96,48 @@ def sample_canvas_data():
         ],
         "fill_in_multiple_blanks_question": [],
     }
+
+
+@pytest.fixture
+def lti_env_vars(aws_credentials):
+    """Set LTI environment variables with a test RSA key pair."""
+    from src.core.config import get_settings
+
+    get_settings.cache_clear()
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = private_key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+
+    os.environ["BASE_URL"] = "https://test.execute-api.ca-central-1.amazonaws.com/dev"
+    os.environ["LTI_ISS"] = "https://canvas.test.instructure.com"
+    os.environ["LTI_CLIENT_ID"] = "10000000000001"
+    os.environ["LTI_DEPLOYMENT_ID"] = "1:test-deployment"
+    os.environ["LTI_AUTH_LOGIN_URL"] = (
+        "https://canvas.test.instructure.com/api/lti/authorize_redirect"
+    )
+    os.environ["LTI_AUTH_TOKEN_URL"] = (
+        "https://canvas.test.instructure.com/login/oauth2/token"
+    )
+    os.environ["LTI_KEY_SET_URL"] = (
+        "https://canvas.test.instructure.com/api/lti/security/jwks"
+    )
+    os.environ["LTI_PRIVATE_KEY"] = pem
+
+    yield
+
+    for key in [
+        "BASE_URL",
+        "LTI_ISS",
+        "LTI_CLIENT_ID",
+        "LTI_DEPLOYMENT_ID",
+        "LTI_AUTH_LOGIN_URL",
+        "LTI_AUTH_TOKEN_URL",
+        "LTI_KEY_SET_URL",
+        "LTI_PRIVATE_KEY",
+    ]:
+        os.environ.pop(key, None)
+    get_settings.cache_clear()
