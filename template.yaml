@@ -15,6 +15,7 @@ Globals:
         BUCKET_NAME: !Ref GradingBucket
         STAGE: !Ref Stage
         POWERTOOLS_SERVICE_NAME: grading-helper
+        BASE_URL: !Ref BaseUrl
 
 Parameters:
   Stage:
@@ -24,6 +25,10 @@ Parameters:
       - dev
       - staging
       - prod
+  BaseUrl:
+    Type: String
+    Default: ""
+    Description: Public base URL of the API (e.g. https://xxx.execute-api.ca-central-1.amazonaws.com/dev)
 
 Resources:
   # --- API Gateway ---
@@ -61,6 +66,8 @@ Resources:
             TableName: !Ref GradingTable
         - S3CrudPolicy:
             BucketName: !Ref GradingBucket
+        - SSMParameterReadPolicy:
+            ParameterName: grading-helper/lti-private-key
       Events:
         ApiCatchAll:
           Type: HttpApi
