@@ -129,11 +129,23 @@ def lti_config():
             "target_link_uri": f"{base}/lti/launch",
             "public_jwk_url": f"{base}/.well-known/jwks.json",
             "scopes": [
+                # AGS — grade passback (type-agnostic)
                 "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
                 "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
                 "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
                 "https://purl.imsglobal.org/spec/lti-ags/scope/score",
+                # NRPS — course roster
                 "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly",
+                # Canvas REST API — Classic Quizzes
+                "url:GET|/api/v1/courses/:course_id/quizzes",
+                "url:GET|/api/v1/courses/:course_id/quizzes/:quiz_id/questions",
+                "url:GET|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions",
+                # Canvas REST API — Assignments
+                "url:GET|/api/v1/courses/:course_id/assignments",
+                "url:GET|/api/v1/courses/:course_id/assignments/:assignment_id/submissions",
+                # Canvas REST API — Discussion Topics
+                "url:GET|/api/v1/courses/:course_id/discussion_topics",
+                "url:GET|/api/v1/courses/:course_id/discussion_topics/:topic_id/entries",
             ],
             "extensions": [
                 {
