@@ -44,4 +44,6 @@ class LTIStateStore:
         item = response.get("Attributes")
         if not item:
             return None
+        if item.get("ttl", 0) < int(time.time()):
+            return None
         return {"nonce": item["nonce"], "platform_id": item["platform_id"]}

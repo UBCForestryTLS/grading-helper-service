@@ -102,8 +102,11 @@ def sample_canvas_data():
 def lti_env_vars(aws_credentials):
     """Set LTI environment variables with a test RSA key pair."""
     from src.core.config import get_settings
+    from src.lti.key_manager import get_private_key, get_public_jwk
 
     get_settings.cache_clear()
+    get_private_key.cache_clear()
+    get_public_jwk.cache_clear()
 
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     pem = private_key.private_bytes(
@@ -141,3 +144,5 @@ def lti_env_vars(aws_credentials):
     ]:
         os.environ.pop(key, None)
     get_settings.cache_clear()
+    get_private_key.cache_clear()
+    get_public_jwk.cache_clear()

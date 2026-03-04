@@ -44,6 +44,21 @@ class TestLTIStateStore:
         assert "ttl" in item
         assert int(item["ttl"]) > int(time.time())
 
+    def test_validate_expired_state_returns_none(self, dynamodb_table):
+        """State with a past TTL is rejected even if DynamoDB hasn't deleted it yet."""
+        store = LTIStateStore(table=dynamodb_table)
+        state, nonce = store.create("https://canvas.test")
+
+        # Backdate the TTL to simulate an expired-but-not-yet-deleted item
+        dynamodb_table.update_item(
+            Key={"pk": f"LTI_STATE#{state}", "sk": "STATE"},
+            UpdateExpression="SET #t = :expired",
+            ExpressionAttributeNames={"#t": "ttl"},
+            ExpressionAttributeValues={":expired": int(time.time()) - 1},
+        )
+
+        assert store.validate(state) is None
+
 
 class TestKeyManager:
     def test_get_public_jwk_returns_valid_jwk(self, lti_env_vars):

@@ -34,6 +34,9 @@ async def lti_login(request: Request):
     if iss != settings.lti_iss:
         raise HTTPException(status_code=400, detail=f"Unknown issuer: {iss}")
 
+    if params.get("client_id") and params["client_id"] != settings.lti_client_id:
+        raise HTTPException(status_code=400, detail="Unknown client_id")
+
     state_store = LTIStateStore()
     state, nonce = state_store.create(iss)
 

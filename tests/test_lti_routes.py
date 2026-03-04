@@ -131,6 +131,17 @@ class TestOIDCLogin:
         )
         assert response.status_code == 400
 
+    def test_login_wrong_client_id_returns_400(self, client):
+        response = client.get(
+            "/lti/login",
+            params={
+                "iss": "https://canvas.test.instructure.com",
+                "login_hint": "user123",
+                "client_id": "wrong-client-id",
+            },
+        )
+        assert response.status_code == 400
+
 
 class TestLTILaunch:
     def test_launch_missing_params_returns_400(self, client):
