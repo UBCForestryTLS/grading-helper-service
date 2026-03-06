@@ -30,3 +30,6 @@ experiments/logs/*.log
 
 # MkDocs build output
 site/
+
+# Student feedback data
+feedback_analysis/data/
