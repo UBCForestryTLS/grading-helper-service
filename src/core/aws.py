@@ -17,3 +17,8 @@ def get_dynamodb_table():
 def get_s3_client():
     settings = get_settings()
     return boto3.client("s3", region_name=settings.aws_region)
+
+
+def get_bedrock_runtime_client():
+    settings = get_settings()
+    return boto3.client("bedrock-runtime", region_name=settings.aws_region)

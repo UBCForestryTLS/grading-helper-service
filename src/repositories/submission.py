@@ -86,3 +86,21 @@ class SubmissionRepository:
         if item is None:
             return None
         return self._from_item(item)
+
+    def update_ai_grade(
+        self,
+        job_id: UUID,
+        submission_id: UUID,
+        ai_grade: float,
+        ai_feedback: str,
+        ai_graded_at: datetime,
+    ) -> None:
+        self.table.update_item(
+            Key={"pk": f"JOB#{job_id}", "sk": f"SUB#{submission_id}"},
+            UpdateExpression="SET ai_grade = :grade, ai_feedback = :feedback, ai_graded_at = :graded_at",
+            ExpressionAttributeValues={
+                ":grade": str(ai_grade),
+                ":feedback": ai_feedback,
+                ":graded_at": ai_graded_at.isoformat(),
+            },
+        )

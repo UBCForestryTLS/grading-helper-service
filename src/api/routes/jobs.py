@@ -9,6 +9,7 @@ from src.models.grading_job import GradingJob, GradingJobCreate, JobStatus
 from src.models.submission import Submission
 from src.repositories.grading_job import GradingJobRepository
 from src.repositories.submission import SubmissionRepository
+from src.services.grading import GradingService
 from src.services.ingestion import IngestionService
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -16,6 +17,10 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 def _get_ingestion_service() -> IngestionService:
     return IngestionService()
+
+
+def _get_grading_service() -> GradingService:
+    return GradingService()
 
 
 def _get_job_repo() -> GradingJobRepository:
@@ -70,6 +75,24 @@ def list_jobs(
     if course_id is not None:
         return repo.list_by_course(course_id)
     return repo.list_by_status(status)
+
+
+@router.post("/{job_id}/grade", response_model=GradingJob)
+def grade_job(job_id: UUID) -> GradingJob:
+    """Start AI grading for a job's submissions."""
+    job_repo = _get_job_repo()
+    job = job_repo.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != JobStatus.PENDING:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job is {job.status}, must be PENDING to grade",
+        )
+
+    service = _get_grading_service()
+    service.grade_job(job_id)
+    return job_repo.get(job_id)
 
 
 @router.get("/{job_id}/submissions", response_model=list[Submission])

@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     lti_private_key: str = ""  # PEM private key (direct or via SSM)
     lti_private_key_ssm_param: str = "/grading-helper/lti-private-key"
 
+    # Bedrock configuration
+    bedrock_model_id: str = "anthropic.claude-haiku-4-5-20251001-v1:0"
+
     model_config = {"env_prefix": "", "case_sensitive": False}
 
 

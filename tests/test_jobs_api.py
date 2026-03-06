@@ -170,6 +170,48 @@ class TestListJobs:
         assert response.json() == []
 
 
+class TestGradeJob:
+    def test_grade_job_success(self, client, sample_canvas_data):
+        create_resp = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+        )
+        job_id = create_resp.json()["job_id"]
+
+        with patch("src.api.routes.jobs._get_grading_service") as mock_get_service:
+            mock_service = mock_get_service.return_value
+            mock_service.grade_job.return_value = None
+            response = client.post(f"/jobs/{job_id}/grade")
+
+        assert response.status_code == 200
+        mock_service.grade_job.assert_called_once()
+
+    def test_grade_job_not_found(self, client):
+        response = client.post("/jobs/12345678-1234-5678-1234-567812345678/grade")
+        assert response.status_code == 404
+
+    def test_grade_job_not_pending(self, client, mock_table, sample_canvas_data):
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=mock_table)
+        job = GradingJob(
+            course_id="C100",
+            quiz_id="Q50",
+            job_name="Done Job",
+            status=JobStatus.COMPLETED,
+        )
+        repo.create(job)
+
+        response = client.post(f"/jobs/{job.job_id}/grade")
+        assert response.status_code == 409
+
+
 class TestListSubmissions:
     def test_list_submissions(self, client, sample_canvas_data):
         create_resp = client.post(

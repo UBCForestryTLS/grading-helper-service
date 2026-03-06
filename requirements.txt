@@ -5,7 +5,9 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
     # via pydantic
 anyio==4.12.1
-    # via starlette
+    # via
+    #   httpx
+    #   starlette
 aws-lambda-powertools==3.24.0
     # via grading-helper-service
 boto3==1.42.43
@@ -14,14 +16,26 @@ botocore==1.42.43
     # via
     #   boto3
     #   s3transfer
+certifi==2025.10.5
+    # via
+    #   httpcore
+    #   httpx
 cffi==2.0.0 ; platform_python_implementation != 'PyPy'
     # via cryptography
 cryptography==46.0.4
     # via grading-helper-service
 fastapi==0.128.3
     # via grading-helper-service
+h11==0.16.0
+    # via httpcore
+httpcore==1.0.9
+    # via httpx
+httpx==0.28.1
+    # via grading-helper-service
 idna==3.11
-    # via anyio
+    # via
+    #   anyio
+    #   httpx
 jmespath==1.1.0
     # via
     #   aws-lambda-powertools

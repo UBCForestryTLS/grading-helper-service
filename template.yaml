@@ -4,8 +4,8 @@ Description: AI-powered grading assistant for UBC Forestry courses
 
 Globals:
   Function:
-    Timeout: 30
-    MemorySize: 256
+    Timeout: 300
+    MemorySize: 512
     Runtime: python3.13
     Architectures:
       - arm64
@@ -16,6 +16,7 @@ Globals:
         STAGE: !Ref Stage
         POWERTOOLS_SERVICE_NAME: grading-helper
         BASE_URL: !Ref BaseUrl
+        BEDROCK_MODEL_ID: !Ref BedrockModelId
 
 Parameters:
   Stage:
@@ -29,6 +30,10 @@ Parameters:
     Type: String
     Default: ""
     Description: Public base URL of the API (e.g. https://xxx.execute-api.ca-central-1.amazonaws.com/dev)
+  BedrockModelId:
+    Type: String
+    Default: "anthropic.claude-haiku-4-5-20251001-v1:0"
+    Description: Bedrock model ID for AI grading
 
 Resources:
   # --- API Gateway ---
@@ -68,6 +73,12 @@ Resources:
             BucketName: !Ref GradingBucket
         - SSMParameterReadPolicy:
             ParameterName: grading-helper/lti-private-key
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${BedrockModelId}"
       Events:
         ApiCatchAll:
           Type: HttpApi

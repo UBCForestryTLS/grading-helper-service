@@ -218,6 +218,71 @@ class TestSubmissionRepository:
         assert len(results2) == 1
         assert results2[0].student_answer == "Job2 answer"
 
+    def test_update_ai_grade(self, dynamodb_table):
+        repo = SubmissionRepository(table=dynamodb_table)
+        job_id = uuid4()
+        sub = Submission(
+            job_id=job_id,
+            question_id=101,
+            question_name="Q1",
+            question_type="short_answer_question",
+            question_text="What is X?",
+            points_possible=5.0,
+            student_answer="My answer",
+            canvas_points=3.0,
+            correct_answers=["X"],
+        )
+        repo.batch_create([sub])
+
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        repo.update_ai_grade(
+            job_id=job_id,
+            submission_id=sub.submission_id,
+            ai_grade=4.5,
+            ai_feedback="Good work",
+            ai_graded_at=now,
+        )
+
+        result = repo.get(job_id, sub.submission_id)
+        assert result.ai_grade == 4.5
+        assert result.ai_feedback == "Good work"
+        assert result.ai_graded_at is not None
+
+    def test_update_ai_grade_preserves_fields(self, dynamodb_table):
+        repo = SubmissionRepository(table=dynamodb_table)
+        job_id = uuid4()
+        sub = Submission(
+            job_id=job_id,
+            question_id=101,
+            question_name="Q1",
+            question_type="short_answer_question",
+            question_text="What is X?",
+            points_possible=5.0,
+            student_answer="My answer",
+            canvas_points=3.0,
+            correct_answers=["X", "Y"],
+        )
+        repo.batch_create([sub])
+
+        from datetime import datetime, timezone
+
+        repo.update_ai_grade(
+            job_id=job_id,
+            submission_id=sub.submission_id,
+            ai_grade=4.0,
+            ai_feedback="Nice",
+            ai_graded_at=datetime.now(timezone.utc),
+        )
+
+        result = repo.get(job_id, sub.submission_id)
+        assert result.student_answer == "My answer"
+        assert result.points_possible == 5.0
+        assert result.canvas_points == 3.0
+        assert result.correct_answers == ["X", "Y"]
+        assert result.question_text == "What is X?"
+
     def test_float_roundtrip(self, dynamodb_table):
         """Verify floats survive the DynamoDB string conversion roundtrip."""
         repo = SubmissionRepository(table=dynamodb_table)
