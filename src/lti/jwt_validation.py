@@ -46,7 +46,11 @@ def validate_launch_token(
     claim_deployment_id = claims.get(
         "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
     )
-    if claim_deployment_id != deployment_id:
+    # Canvas may prefix deployment_id with an account ID (e.g. "221:dead3d8b...").
+    # Accept if the claim equals our value or ends with ":<our_value>".
+    if claim_deployment_id != deployment_id and not (
+        claim_deployment_id and claim_deployment_id.endswith(f":{deployment_id}")
+    ):
         raise jwt.InvalidTokenError(
             f"Deployment ID mismatch: expected {deployment_id}, got {claim_deployment_id}"
         )

@@ -17,6 +17,12 @@ Globals:
         POWERTOOLS_SERVICE_NAME: grading-helper
         BASE_URL: !Ref BaseUrl
         BEDROCK_MODEL_ID: !Ref BedrockModelId
+        LTI_ISS: !Ref LtiIss
+        LTI_CLIENT_ID: !Ref LtiClientId
+        LTI_DEPLOYMENT_ID: !Ref LtiDeploymentId
+        LTI_AUTH_LOGIN_URL: !Ref LtiAuthLoginUrl
+        LTI_AUTH_TOKEN_URL: !Ref LtiAuthTokenUrl
+        LTI_KEY_SET_URL: !Ref LtiKeySetUrl
 
 Parameters:
   Stage:
@@ -34,6 +40,34 @@ Parameters:
     Type: String
     Default: "anthropic.claude-haiku-4-5-20251001-v1:0"
     Description: Bedrock model ID for AI grading
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: Allowed CORS origin (set to API Gateway URL in production)
+  LtiIss:
+    Type: String
+    Default: ""
+    Description: LTI platform issuer (https://canvas.instructure.com)
+  LtiClientId:
+    Type: String
+    Default: ""
+    Description: LTI Developer Key client_id from Canvas admin
+  LtiDeploymentId:
+    Type: String
+    Default: ""
+    Description: LTI deployment_id from Canvas admin
+  LtiAuthLoginUrl:
+    Type: String
+    Default: ""
+    Description: Canvas OIDC auth redirect URL
+  LtiAuthTokenUrl:
+    Type: String
+    Default: ""
+    Description: Canvas OAuth2 token endpoint
+  LtiKeySetUrl:
+    Type: String
+    Default: ""
+    Description: Canvas public JWKS URL
 
 Resources:
   # --- API Gateway ---
@@ -46,12 +80,10 @@ Resources:
         ThrottlingRateLimit: 5
       CorsConfiguration:
         AllowOrigins:
-          - "*"
+          - !Ref AllowedOrigin
         AllowMethods:
           - GET
           - POST
-          - PUT
-          - DELETE
           - OPTIONS
         AllowHeaders:
           - Content-Type
