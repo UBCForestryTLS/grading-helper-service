@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from moto import mock_aws
 
 from src.api.app import create_app
+from src.auth.session import _get_public_key
 from src.lti.key_manager import get_private_key, get_public_jwk
 
 
@@ -63,10 +64,12 @@ def client(mock_table, lti_env_vars):
     """FastAPI test client with mocked DynamoDB and LTI config."""
     get_private_key.cache_clear()
     get_public_jwk.cache_clear()
+    _get_public_key.cache_clear()
     client = TestClient(create_app())
     yield client
     get_private_key.cache_clear()
     get_public_jwk.cache_clear()
+    _get_public_key.cache_clear()
 
 
 class TestJWKS:
@@ -214,6 +217,9 @@ class TestLTILaunch:
             )
 
         assert response.status_code == 200
+        # New response is the instructor UI (not the old placeholder page)
         assert "Test User" in response.text
         assert "Intro to Forestry" in response.text
         assert "Instructor" in response.text
+        # Session token is embedded in the UI
+        assert "session-token" in response.text

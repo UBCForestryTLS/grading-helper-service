@@ -103,10 +103,12 @@ def lti_env_vars(aws_credentials):
     """Set LTI environment variables with a test RSA key pair."""
     from src.core.config import get_settings
     from src.lti.key_manager import get_private_key, get_public_jwk
+    from src.auth.session import _get_public_key
 
     get_settings.cache_clear()
     get_private_key.cache_clear()
     get_public_jwk.cache_clear()
+    _get_public_key.cache_clear()
 
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     pem = private_key.private_bytes(
@@ -146,3 +148,16 @@ def lti_env_vars(aws_credentials):
     get_settings.cache_clear()
     get_private_key.cache_clear()
     get_public_jwk.cache_clear()
+    _get_public_key.cache_clear()
+
+
+@pytest.fixture
+def session_token(lti_env_vars):
+    """Create a valid RS256 session token for course C100."""
+    from src.auth.session import create_session_token
+
+    return create_session_token(
+        launch_id="test-launch-id",
+        course_id="C100",
+        canvas_user_id="test-user-123",
+    )

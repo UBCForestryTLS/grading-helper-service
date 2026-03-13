@@ -194,7 +194,6 @@ def list_lti_quizzes(
         raise HTTPException(status_code=503, detail="Canvas API URL not configured")
 
     token = get_canvas_token(
-        canvas_url=settings.api_canvas_url,
         course_id=session.course_id,
         canvas_user_id=session.canvas_user_id,
     )
@@ -223,7 +222,6 @@ def lti_create_job(
         raise HTTPException(status_code=503, detail="Canvas API URL not configured")
 
     token = get_canvas_token(
-        canvas_url=settings.api_canvas_url,
         course_id=session.course_id,
         canvas_user_id=session.canvas_user_id,
     )
@@ -344,7 +342,6 @@ async def oauth_callback(
 
     expires_at = int(time.time()) + token_data.get("expires_in", 3600)
     store_canvas_token(
-        canvas_url=settings.api_canvas_url,
         course_id=launch["course_id"],
         canvas_user_id=launch["canvas_user_id"],
         access_token=token_data["access_token"],

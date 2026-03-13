@@ -24,6 +24,15 @@ class Settings(BaseSettings):
     # Bedrock configuration
     bedrock_model_id: str = "anthropic.claude-haiku-4-5-20251001-v1:0"
 
+    # Canvas API OAuth2 (API Developer Key — for REST API access on behalf of instructor)
+    api_client_id: str = ""  # Canvas API Developer Key client_id (244490000000000213)
+    api_client_secret: str = (
+        ""  # Canvas API Developer Key client_secret (pending from William)
+    )
+    api_canvas_url: str = (
+        ""  # Canvas instance base URL (e.g. https://ubcstaging.instructure.com)
+    )
+
     model_config = {"env_prefix": "", "case_sensitive": False}
 
 
