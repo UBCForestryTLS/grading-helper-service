@@ -141,3 +141,185 @@ class TestIngestionService:
         job = service.ingest("C100", "Q50", "Multi-type Job", data)
         assert job.total_questions == 2
         assert job.total_submissions == 2
+
+
+class TestIngestionServiceFromCanvasAPI:
+    """Tests for IngestionService.ingest_from_canvas_api()."""
+
+    QUESTIONS = [
+        {
+            "id": 101,
+            "question_name": "Q1",
+            "question_type": "short_answer_question",
+            "question_text": "What is photosynthesis?",
+            "points_possible": 5.0,
+            "answers": [
+                {
+                    "id": 1,
+                    "answer_text": "Process of converting light to energy",
+                    "answer_weight": 100,
+                },
+                {
+                    "id": 2,
+                    "answer_text": "Making food from sunlight",
+                    "answer_weight": 100,
+                },
+            ],
+        }
+    ]
+
+    QUIZ_SUBMISSIONS = [
+        {"id": 201, "user_id": 501},
+        {"id": 202, "user_id": 502},
+    ]
+
+    ANSWERS_BY_ID = {
+        "201": [{"question_id": 101, "answer": "Plants use sunlight to make food"}],
+        "202": [{"question_id": 101, "answer": "I don't know"}],
+    }
+
+    def test_creates_job_with_correct_counts(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        job = service.ingest_from_canvas_api(
+            "C100",
+            "Q50",
+            "API Job",
+            self.QUESTIONS,
+            self.QUIZ_SUBMISSIONS,
+            self.ANSWERS_BY_ID,
+        )
+
+        assert job.course_id == "C100"
+        assert job.quiz_id == "Q50"
+        assert job.total_questions == 1
+        assert job.total_submissions == 2
+
+    def test_stores_canvas_user_id_on_submissions(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        job = service.ingest_from_canvas_api(
+            "C100",
+            "Q50",
+            "API Job",
+            self.QUESTIONS,
+            self.QUIZ_SUBMISSIONS,
+            self.ANSWERS_BY_ID,
+        )
+
+        subs = sub_repo.list_by_job(job.job_id)
+        user_ids = {s.canvas_user_id for s in subs}
+        assert "501" in user_ids
+        assert "502" in user_ids
+
+    def test_maps_student_answers_to_questions(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        job = service.ingest_from_canvas_api(
+            "C100",
+            "Q50",
+            "API Job",
+            self.QUESTIONS,
+            self.QUIZ_SUBMISSIONS,
+            self.ANSWERS_BY_ID,
+        )
+
+        subs = sub_repo.list_by_job(job.job_id)
+        answers = {s.student_answer for s in subs}
+        assert "Plants use sunlight to make food" in answers
+        assert "I don't know" in answers
+
+    def test_extracts_correct_answers_from_answer_weight(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        job = service.ingest_from_canvas_api(
+            "C100",
+            "Q50",
+            "API Job",
+            self.QUESTIONS,
+            self.QUIZ_SUBMISSIONS,
+            self.ANSWERS_BY_ID,
+        )
+
+        subs = sub_repo.list_by_job(job.job_id)
+        for sub in subs:
+            assert "Process of converting light to energy" in sub.correct_answers
+            assert "Making food from sunlight" in sub.correct_answers
+
+    def test_skips_non_gradable_question_types(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        questions_with_mc = self.QUESTIONS + [
+            {
+                "id": 999,
+                "question_name": "MC",
+                "question_type": "multiple_choice_question",
+                "question_text": "Pick one",
+                "points_possible": 2.0,
+                "answers": [],
+            }
+        ]
+        job = service.ingest_from_canvas_api(
+            "C100",
+            "Q50",
+            "API Job",
+            questions_with_mc,
+            self.QUIZ_SUBMISSIONS,
+            self.ANSWERS_BY_ID,
+        )
+
+        assert job.total_questions == 1  # only short_answer_question counted
+
+    def test_includes_essay_questions(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        essay_questions = [
+            {
+                "id": 201,
+                "question_name": "Essay Q1",
+                "question_type": "essay_question",
+                "question_text": "Explain photosynthesis.",
+                "points_possible": 4.0,
+                "answers": [],  # essay questions have no model answers
+            }
+        ]
+        quiz_submissions = [{"id": 301, "user_id": 601}]
+        answers_by_id = {
+            "301": [{"question_id": 201, "answer": "Plants convert light to energy."}]
+        }
+
+        job = service.ingest_from_canvas_api(
+            "C100", "Q50", "Essay Job", essay_questions, quiz_submissions, answers_by_id
+        )
+
+        assert job.total_questions == 1
+        subs = sub_repo.list_by_job(job.job_id)
+        assert len(subs) == 1
+        assert subs[0].question_type == "essay_question"
+        assert subs[0].correct_answers == []
+        assert subs[0].student_answer == "Plants convert light to energy."
+
+    def test_empty_submissions_list(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        job = service.ingest_from_canvas_api(
+            "C100", "Q50", "Empty Job", self.QUESTIONS, [], {}
+        )
+
+        assert job.total_submissions == 0
+        subs = sub_repo.list_by_job(job.job_id)
+        assert subs == []

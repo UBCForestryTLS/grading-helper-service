@@ -19,6 +19,7 @@ class Submission(BaseModel):
     student_answer: str
     canvas_points: float
     correct_answers: list[str]
+    canvas_user_id: str = ""
     ai_grade: float | None = None
     ai_feedback: str | None = None
     ai_graded_at: datetime | None = None

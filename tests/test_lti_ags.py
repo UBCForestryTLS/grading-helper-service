@@ -1,0 +1,267 @@
+"""Tests for the LTI AGS (Assignment and Grade Services) grade passback module."""
+
+from unittest.mock import MagicMock, patch
+
+
+class TestGetAgsToken:
+    def test_get_ags_token_returns_access_token(self, lti_env_vars):
+        from src.lti.ags import get_ags_token
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"access_token": "ags-bearer-token"}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.post", return_value=mock_response) as mock_post:
+            token = get_ags_token(
+                client_id="10000000000001",
+                auth_token_url="https://canvas.test.instructure.com/login/oauth2/token",
+            )
+
+        assert token == "ags-bearer-token"
+        call_kwargs = mock_post.call_args
+        assert call_kwargs[0][0].endswith("/login/oauth2/token")
+        data = call_kwargs[1]["data"]
+        assert data["grant_type"] == "client_credentials"
+        assert "client_assertion" in data
+        assert "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" in data.get(
+            "client_assertion_type", ""
+        )
+
+    def test_get_ags_token_jwt_assertion_is_signed(self, lti_env_vars):
+        """The JWT assertion should be a properly formatted JWT."""
+        from src.lti.ags import get_ags_token
+
+        captured_assertion = None
+
+        def capture_post(url, data=None, **kwargs):
+            nonlocal captured_assertion
+            captured_assertion = data.get("client_assertion")
+            resp = MagicMock()
+            resp.json.return_value = {"access_token": "tok"}
+            resp.raise_for_status = MagicMock()
+            return resp
+
+        with patch("src.lti.ags.httpx.post", side_effect=capture_post):
+            get_ags_token(
+                client_id="10000000000001",
+                auth_token_url="https://canvas.test.instructure.com/login/oauth2/token",
+            )
+
+        assert captured_assertion is not None
+        # Verify it's a valid JWT with 3 parts
+        assert len(captured_assertion.split(".")) == 3
+
+
+class TestSubmitScore:
+    def test_submit_score_sends_correct_payload(self):
+        from src.lti.ags import submit_score
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"id": "score-1"}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.post", return_value=mock_response) as mock_post:
+            result = submit_score(
+                lineitem_url="https://canvas.example.com/api/lti/lineitem/1",
+                token="bearer-token",
+                user_id="user-abc",
+                score=4.5,
+                max_score=5.0,
+                comment="Good answer",
+            )
+
+        assert result == {"id": "score-1"}
+        call_kwargs = mock_post.call_args
+        assert call_kwargs[0][0].endswith("/scores")
+        payload = call_kwargs[1]["json"]
+        assert payload["userId"] == "user-abc"
+        assert payload["scoreGiven"] == 4.5
+        assert payload["scoreMaximum"] == 5.0
+        assert payload["activityProgress"] == "Completed"
+        assert payload["gradingProgress"] == "FullyGraded"
+        assert payload["comment"] == "Good answer"
+        assert "timestamp" in payload
+        headers = call_kwargs[1]["headers"]
+        assert "application/vnd.ims.lis.v1.score+json" in headers.get(
+            "Content-Type", ""
+        )
+
+    def test_submit_score_without_comment(self):
+        from src.lti.ags import submit_score
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.post", return_value=mock_response) as mock_post:
+            submit_score(
+                lineitem_url="https://canvas.example.com/lineitem/1",
+                token="tok",
+                user_id="u1",
+                score=3.0,
+                max_score=5.0,
+            )
+
+        payload = mock_post.call_args[1]["json"]
+        assert "comment" not in payload
+
+
+class TestPassbackJobGrades:
+    def test_passback_no_launch(self, dynamodb_table):
+        from src.lti.ags import passback_job_grades
+
+        result = passback_job_grades(
+            job_id="some-job-id",
+            launch_id="nonexistent-launch",
+            table=dynamodb_table,
+        )
+        assert result["submitted"] == 0
+        assert len(result["errors"]) == 1
+        assert "not found" in result["errors"][0]
+
+    def test_passback_no_lineitem_url(self, dynamodb_table):
+        from src.lti.ags import passback_job_grades
+        from src.lti.launch_store import LaunchStore
+
+        # Create a launch without an AGS lineitem URL
+        store = LaunchStore(table=dynamodb_table)
+        launch_id = store.create(
+            {"sub": "user-1", "iss": "https://canvas.test.instructure.com"}
+        )
+
+        result = passback_job_grades(
+            job_id="job-1",
+            launch_id=launch_id,
+            table=dynamodb_table,
+        )
+        assert result["submitted"] == 0
+        assert "No AGS lineitem URL" in result["errors"][0]
+
+    def test_passback_submits_graded_submissions(self, dynamodb_table, lti_env_vars):
+        from uuid import uuid4
+        from src.lti.ags import passback_job_grades
+        from src.lti.launch_store import LaunchStore
+        from src.models.grading_job import GradingJob
+        from src.models.submission import Submission
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        # Create launch with AGS lineitem URL
+        store = LaunchStore(table=dynamodb_table)
+        launch_id = store.create(
+            {
+                "sub": "user-1",
+                "iss": "https://canvas.test.instructure.com",
+                "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": {
+                    "lineitem": "https://canvas.test.instructure.com/api/lti/lineitem/1",
+                    "scope": ["https://purl.imsglobal.org/spec/lti-ags/scope/score"],
+                },
+            }
+        )
+
+        # Create a job and graded submission
+        job_id = uuid4()
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(job_id=job_id, course_id="C1", quiz_id="Q1", job_name="Test")
+        job_repo.create(job)
+
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        sub = Submission(
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="short_answer_question",
+            question_text="What?",
+            points_possible=5.0,
+            student_answer="Answer",
+            canvas_points=0.0,
+            correct_answers=["Correct answer"],
+            canvas_user_id="canvas-student-42",
+            ai_grade=4.0,
+            ai_feedback="Good",
+        )
+        sub_repo.batch_create([sub])
+
+        mock_ags_token_resp = MagicMock()
+        mock_ags_token_resp.json.return_value = {"access_token": "ags-tok"}
+        mock_ags_token_resp.raise_for_status = MagicMock()
+
+        mock_score_resp = MagicMock()
+        mock_score_resp.json.return_value = {}
+        mock_score_resp.raise_for_status = MagicMock()
+
+        with patch(
+            "src.lti.ags.httpx.post", side_effect=[mock_ags_token_resp, mock_score_resp]
+        ) as mock_post:
+            result = passback_job_grades(
+                job_id=str(job_id),
+                launch_id=launch_id,
+                table=dynamodb_table,
+            )
+
+            # Verify canvas_user_id was passed to submit_score, not submission_id
+            score_call = mock_post.call_args_list[1]
+            assert score_call[1]["json"]["userId"] == "canvas-student-42"
+
+        assert result["submitted"] == 1
+        assert result["errors"] == []
+
+    def test_passback_skips_ungraded_submissions(self, dynamodb_table, lti_env_vars):
+        from uuid import uuid4
+        from src.lti.ags import passback_job_grades
+        from src.lti.launch_store import LaunchStore
+        from src.models.grading_job import GradingJob
+        from src.models.submission import Submission
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        store = LaunchStore(table=dynamodb_table)
+        launch_id = store.create(
+            {
+                "sub": "user-1",
+                "iss": "https://canvas.test.instructure.com",
+                "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": {
+                    "lineitem": "https://canvas.test.instructure.com/lineitem/1",
+                    "scope": [],
+                },
+            }
+        )
+
+        job_id = uuid4()
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        job_repo.create(
+            GradingJob(job_id=job_id, course_id="C1", quiz_id="Q1", job_name="Test")
+        )
+
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        # Submission without ai_grade
+        sub_repo.batch_create(
+            [
+                Submission(
+                    job_id=job_id,
+                    question_id=1,
+                    question_name="Q1",
+                    question_type="short_answer_question",
+                    question_text="?",
+                    points_possible=5.0,
+                    student_answer="Answer",
+                    canvas_points=0.0,
+                    correct_answers=[],
+                    ai_grade=None,  # not graded
+                )
+            ]
+        )
+
+        mock_token_resp = MagicMock()
+        mock_token_resp.json.return_value = {"access_token": "tok"}
+        mock_token_resp.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.post", return_value=mock_token_resp):
+            result = passback_job_grades(
+                job_id=str(job_id),
+                launch_id=launch_id,
+                table=dynamodb_table,
+            )
+
+        assert result["submitted"] == 0
+        assert result["errors"] == []

@@ -73,3 +73,90 @@ class IngestionService:
             self.sub_repo.batch_create(submissions)
 
         return job
+
+    def ingest_from_canvas_api(
+        self,
+        course_id: str,
+        quiz_id: str,
+        job_name: str,
+        questions: list[dict],
+        quiz_submissions: list[dict],
+        answers_by_id: dict[str, list[dict]],
+    ) -> GradingJob:
+        """Create a grading job directly from Canvas REST API response data.
+
+        Args:
+            course_id: The Canvas course ID.
+            quiz_id: The Canvas quiz ID.
+            job_name: Human-readable name for the job.
+            questions: List of question dicts from GET /quizzes/:id/questions.
+                       Each answer uses Canvas field names: answer_text, answer_weight.
+            quiz_submissions: List of quiz_submission dicts from GET /quizzes/:id/submissions.
+                              Each entry has id (quiz_submission_id) and user_id.
+            answers_by_id: Mapping of str(quiz_submission_id) → list of answer dicts
+                           from GET /quiz_submissions/:id/questions. Each has
+                           question_id and answer.
+
+        Returns:
+            The created GradingJob.
+        """
+        GRADABLE_TYPES = {
+            "short_answer_question",
+            "fill_in_multiple_blanks_question",
+            "essay_question",
+        }
+
+        job_id = uuid4()
+        submissions: list[Submission] = []
+        gradable_questions = [
+            q for q in questions if q.get("question_type") in GRADABLE_TYPES
+        ]
+
+        for question in gradable_questions:
+            question_id = question["id"]
+            qtype = question.get("question_type", "")
+            correct_answers = [
+                a.get("answer_text", a.get("text", ""))
+                for a in question.get("answers", [])
+                if float(a.get("answer_weight", a.get("weight", 0))) == 100
+            ]
+
+            for qs in quiz_submissions:
+                qs_id = str(qs["id"])
+                canvas_user_id = str(qs.get("user_id", ""))
+
+                student_answer = ""
+                for ans in answers_by_id.get(qs_id, []):
+                    if ans.get("question_id") == question_id:
+                        student_answer = str(ans.get("answer") or "")
+                        break
+
+                submissions.append(
+                    Submission(
+                        job_id=job_id,
+                        question_id=question_id,
+                        question_name=question.get("question_name", ""),
+                        question_type=qtype,
+                        question_text=question.get("question_text", ""),
+                        points_possible=float(question.get("points_possible", 0)),
+                        student_answer=student_answer,
+                        canvas_points=0.0,
+                        correct_answers=correct_answers,
+                        canvas_user_id=canvas_user_id,
+                    )
+                )
+
+        job = GradingJob(
+            job_id=job_id,
+            course_id=course_id,
+            quiz_id=quiz_id,
+            job_name=job_name,
+            total_questions=len(gradable_questions),
+            total_submissions=len(submissions),
+        )
+
+        self.job_repo.create(job)
+        if submissions:
+            self.sub_repo.batch_create(submissions)
+
+        return job
