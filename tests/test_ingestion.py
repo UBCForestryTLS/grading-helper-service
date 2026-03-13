@@ -79,17 +79,13 @@ class TestIngestionService:
             assert sub.question_type == "short_answer_question"
             assert sub.points_possible == 5.0
 
-    def test_ingest_empty_export(self, dynamodb_table):
+    def test_ingest_empty_export_raises(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
         sub_repo = SubmissionRepository(table=dynamodb_table)
         service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
 
-        job = service.ingest("C100", "Q50", "Empty Job", {})
-
-        assert job.total_questions == 0
-        assert job.total_submissions == 0
-        subs = sub_repo.list_by_job(job.job_id)
-        assert subs == []
+        with pytest.raises(ValueError, match="No gradable submissions found"):
+            service.ingest("C100", "Q50", "Empty Job", {})
 
     def test_ingest_invalid_data_raises(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
@@ -311,15 +307,12 @@ class TestIngestionServiceFromCanvasAPI:
         assert subs[0].correct_answers == []
         assert subs[0].student_answer == "Plants convert light to energy."
 
-    def test_empty_submissions_list(self, dynamodb_table):
+    def test_empty_submissions_raises(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
         sub_repo = SubmissionRepository(table=dynamodb_table)
         service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
 
-        job = service.ingest_from_canvas_api(
-            "C100", "Q50", "Empty Job", self.QUESTIONS, [], {}
-        )
-
-        assert job.total_submissions == 0
-        subs = sub_repo.list_by_job(job.job_id)
-        assert subs == []
+        with pytest.raises(ValueError, match="No gradable submissions found"):
+            service.ingest_from_canvas_api(
+                "C100", "Q50", "Empty Job", self.QUESTIONS, [], {}
+            )

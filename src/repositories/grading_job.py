@@ -41,8 +41,6 @@ class GradingJobRepository:
             "total_submissions": job.total_submissions,
             "created_at": created_at,
             "updated_at": updated_at,
-            # Store floats as strings to avoid Decimal issues
-            "points_possible_str": "",
         }
         if job.error_message is not None:
             item["error_message"] = job.error_message

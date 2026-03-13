@@ -68,9 +68,14 @@ class IngestionService:
             total_submissions=len(submissions),
         )
 
+        if not submissions:
+            raise ValueError(
+                "No gradable submissions found. The quiz may contain no short-answer "
+                "or essay questions, or no students have submitted."
+            )
+
         self.job_repo.create(job)
-        if submissions:
-            self.sub_repo.batch_create(submissions)
+        self.sub_repo.batch_create(submissions)
 
         return job
 
@@ -155,8 +160,13 @@ class IngestionService:
             total_submissions=len(submissions),
         )
 
+        if not submissions:
+            raise ValueError(
+                "No gradable submissions found. The quiz may contain no short-answer "
+                "or essay questions, or no students have submitted."
+            )
+
         self.job_repo.create(job)
-        if submissions:
-            self.sub_repo.batch_create(submissions)
+        self.sub_repo.batch_create(submissions)
 
         return job
