@@ -1,6 +1,6 @@
 build-ApiFunction:
 	cp -r src $(ARTIFACTS_DIR)/src
-	python3.13 -m pip install \
+	/opt/homebrew/bin/python3.13 -m pip install \
 		--platform manylinux2014_aarch64 \
 		--only-binary=:all: \
 		--implementation cp \

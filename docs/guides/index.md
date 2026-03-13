@@ -1,14 +1,9 @@
 # Guides
 
-!!! warning "Work in Progress"
-    This section is currently under development.
+Step-by-step guides for common tasks. These are more detailed than the [Development](../development/index.md) page and walk you through specific workflows.
 
-## Planned Content
+| Guide | Description |
+|-------|-------------|
+| **[Local Setup](local-setup.md)** | Set up a development environment from scratch |
 
-- Step-by-step tutorials
-- Best practices for instructors and TAs
-- Common workflows
-- Troubleshooting guides
-- FAQ section
-- Tips and tricks
-
+| **[Running Tests](running-tests.md)** | Run tests, understand fixtures, and write new tests |

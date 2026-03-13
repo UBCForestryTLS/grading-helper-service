@@ -1,6 +1,6 @@
 site_name: AI Grading Helper Docs
 site_description: Official documentation for UBC Faculty of Forestry AI Grading Helper Service
-site_url: https://mydomain.org/mysite
+site_url: https://forestrytls.github.io/grading-helper-service/
 repo_url: https://github.com/forestrytls/grading-helper-service/
 repo_name: forestrytls/grading-helper-service
 
@@ -17,7 +17,7 @@ theme:
       primary: green
       accent: teal
       toggle:
-        icon: material/brightness-7 
+        icon: material/brightness-7
         name: Switch to dark mode
 
     # Palette toggle for dark mode
@@ -27,7 +27,7 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-  
+
   features:
     - navigation.instant
     - navigation.tracking
@@ -44,7 +44,11 @@ theme:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.emoji:
@@ -67,12 +71,16 @@ nav:
   - Getting Started:
     - getting-started/start_here.md
   - Architecture: architecture/index.md
+  - LTI Integration: lti-integration/index.md
+  - Data Models: data-models/index.md
+  - API Reference: api/index.md
   - Design Decisions: decisions/index.md
   - Development: development/index.md
-  - API Reference: api/index.md
-  - Data Models: data-models/index.md
-  - Evaluation: evaluation/index.md
   - Deployment: deployment/index.md
-  - LTI Integration: lti-integration/index.md
-  - Guides: guides/index.md
+  - Evaluation: evaluation/index.md
+  - Guides:
+    - guides/index.md
+    - Local Setup: guides/local-setup.md
+
+    - Running Tests: guides/running-tests.md
   - Reference: reference/index.md

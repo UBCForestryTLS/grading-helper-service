@@ -23,6 +23,9 @@ Globals:
         LTI_AUTH_LOGIN_URL: !Ref LtiAuthLoginUrl
         LTI_AUTH_TOKEN_URL: !Ref LtiAuthTokenUrl
         LTI_KEY_SET_URL: !Ref LtiKeySetUrl
+        API_CLIENT_ID: !Ref ApiClientId
+        API_CLIENT_SECRET: !Ref ApiClientSecret
+        API_CANVAS_URL: !Ref ApiCanvasUrl
 
 Parameters:
   Stage:
@@ -68,6 +71,18 @@ Parameters:
     Type: String
     Default: ""
     Description: Canvas public JWKS URL
+  ApiClientId:
+    Type: String
+    Default: ""
+    Description: Canvas API Developer Key client_id (for REST API OAuth2)
+  ApiClientSecret:
+    Type: String
+    Default: ""
+    Description: Canvas API Developer Key client_secret (for REST API OAuth2)
+  ApiCanvasUrl:
+    Type: String
+    Default: ""
+    Description: Canvas instance base URL (e.g. https://ubcstaging.instructure.com)
 
 Resources:
   # --- API Gateway ---
