@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     lti_private_key_ssm_param: str = "/grading-helper/lti-private-key"
 
     # Bedrock configuration
-    bedrock_model_id: str = "anthropic.claude-haiku-4-5-20251001-v1:0"
+    bedrock_model_id: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
     # Canvas API OAuth2 (API Developer Key — for REST API access on behalf of instructor)
     api_client_id: str = ""  # Canvas API Developer Key client_id (244490000000000213)

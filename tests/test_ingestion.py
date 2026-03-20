@@ -169,9 +169,9 @@ class TestIngestionServiceFromCanvasAPI:
         {"id": 202, "user_id": 502},
     ]
 
-    ANSWERS_BY_ID = {
-        "201": [{"question_id": 101, "answer": "Plants use sunlight to make food"}],
-        "202": [{"question_id": 101, "answer": "I don't know"}],
+    ANSWERS_BY_USER = {
+        "501": [{"question_id": 101, "answer": "Plants use sunlight to make food"}],
+        "502": [{"question_id": 101, "answer": "I don't know"}],
     }
 
     def test_creates_job_with_correct_counts(self, dynamodb_table):
@@ -185,7 +185,7 @@ class TestIngestionServiceFromCanvasAPI:
             "API Job",
             self.QUESTIONS,
             self.QUIZ_SUBMISSIONS,
-            self.ANSWERS_BY_ID,
+            self.ANSWERS_BY_USER,
         )
 
         assert job.course_id == "C100"
@@ -204,7 +204,7 @@ class TestIngestionServiceFromCanvasAPI:
             "API Job",
             self.QUESTIONS,
             self.QUIZ_SUBMISSIONS,
-            self.ANSWERS_BY_ID,
+            self.ANSWERS_BY_USER,
         )
 
         subs = sub_repo.list_by_job(job.job_id)
@@ -223,7 +223,7 @@ class TestIngestionServiceFromCanvasAPI:
             "API Job",
             self.QUESTIONS,
             self.QUIZ_SUBMISSIONS,
-            self.ANSWERS_BY_ID,
+            self.ANSWERS_BY_USER,
         )
 
         subs = sub_repo.list_by_job(job.job_id)
@@ -242,7 +242,7 @@ class TestIngestionServiceFromCanvasAPI:
             "API Job",
             self.QUESTIONS,
             self.QUIZ_SUBMISSIONS,
-            self.ANSWERS_BY_ID,
+            self.ANSWERS_BY_USER,
         )
 
         subs = sub_repo.list_by_job(job.job_id)
@@ -271,7 +271,7 @@ class TestIngestionServiceFromCanvasAPI:
             "API Job",
             questions_with_mc,
             self.QUIZ_SUBMISSIONS,
-            self.ANSWERS_BY_ID,
+            self.ANSWERS_BY_USER,
         )
 
         assert job.total_questions == 1  # only short_answer_question counted
@@ -292,12 +292,17 @@ class TestIngestionServiceFromCanvasAPI:
             }
         ]
         quiz_submissions = [{"id": 301, "user_id": 601}]
-        answers_by_id = {
-            "301": [{"question_id": 201, "answer": "Plants convert light to energy."}]
+        answers_by_user = {
+            "601": [{"question_id": 201, "answer": "Plants convert light to energy."}]
         }
 
         job = service.ingest_from_canvas_api(
-            "C100", "Q50", "Essay Job", essay_questions, quiz_submissions, answers_by_id
+            "C100",
+            "Q50",
+            "Essay Job",
+            essay_questions,
+            quiz_submissions,
+            answers_by_user,
         )
 
         assert job.total_questions == 1

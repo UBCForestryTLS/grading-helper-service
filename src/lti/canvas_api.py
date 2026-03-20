@@ -47,23 +47,36 @@ class CanvasAPIClient:
     def get_quiz_submissions(self, course_id: str, quiz_id: str) -> list[dict]:
         """Get all quiz_submission objects for a quiz.
 
-        Canvas returns {"quiz_submissions": [...], "submissions": [...]} — we
-        extract just the quiz_submissions list (which includes user_id, id, etc.).
+        Canvas returns {"quiz_submissions": [...]} — we extract the list.
         """
-        url = f"{self.canvas_url}/api/v1/courses/{course_id}/quizzes/{quiz_id}/submissions"
+        url = (
+            f"{self.canvas_url}/api/v1/courses/{course_id}"
+            f"/quizzes/{quiz_id}/submissions"
+        )
         response = self._client.get(url)
         response.raise_for_status()
         data = response.json()
         return data.get("quiz_submissions", [])
 
-    def get_submission_answers(self, quiz_submission_id: str) -> list[dict]:
-        """Get per-question answers for a quiz submission.
+    def get_assignment_submissions(
+        self, course_id: str, assignment_id: str
+    ) -> list[dict]:
+        """Get assignment submissions with submission_history containing submission_data.
 
-        Calls GET /api/v1/quiz_submissions/:id/questions which returns a list
-        of question objects with the student's answer filled in.
+        This is the correct way to get student quiz answers per the Canvas API.
+        The quiz submissions endpoint does NOT populate submission_data.
+        The assignments submissions endpoint with include[]=submission_history does.
+
+        Each submission's submission_history[].submission_data[] contains:
+        - question_id: the quiz question ID
+        - text: the student's answer text
+        - correct: grading status
+        - points: points awarded
         """
         url = (
-            f"{self.canvas_url}/api/v1/quiz_submissions/{quiz_submission_id}/questions"
+            f"{self.canvas_url}/api/v1/courses/{course_id}"
+            f"/assignments/{assignment_id}/submissions"
+            f"?include[]=submission_history&per_page=100"
         )
         return self._get_all_pages(url)
 

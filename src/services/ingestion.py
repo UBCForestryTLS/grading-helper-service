@@ -86,7 +86,7 @@ class IngestionService:
         job_name: str,
         questions: list[dict],
         quiz_submissions: list[dict],
-        answers_by_id: dict[str, list[dict]],
+        answers_by_user: dict[str, list[dict]],
     ) -> GradingJob:
         """Create a grading job directly from Canvas REST API response data.
 
@@ -98,9 +98,9 @@ class IngestionService:
                        Each answer uses Canvas field names: answer_text, answer_weight.
             quiz_submissions: List of quiz_submission dicts from GET /quizzes/:id/submissions.
                               Each entry has id (quiz_submission_id) and user_id.
-            answers_by_id: Mapping of str(quiz_submission_id) → list of answer dicts
-                           from GET /quiz_submissions/:id/questions. Each has
-                           question_id and answer.
+            answers_by_user: Mapping of str(user_id) → list of answer dicts
+                             from Assignments API submission_history.submission_data.
+                             Each has question_id and answer.
 
         Returns:
             The created GradingJob.
@@ -127,11 +127,10 @@ class IngestionService:
             ]
 
             for qs in quiz_submissions:
-                qs_id = str(qs["id"])
                 canvas_user_id = str(qs.get("user_id", ""))
 
                 student_answer = ""
-                for ans in answers_by_id.get(qs_id, []):
+                for ans in answers_by_user.get(canvas_user_id, []):
                     if ans.get("question_id") == question_id:
                         student_answer = str(ans.get("answer") or "")
                         break

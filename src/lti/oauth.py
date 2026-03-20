@@ -7,6 +7,14 @@ import httpx
 from src.core.aws import get_dynamodb_table
 
 
+CANVAS_API_SCOPES = [
+    "url:GET|/api/v1/courses/:course_id/quizzes",
+    "url:GET|/api/v1/courses/:course_id/quizzes/:quiz_id/questions",
+    "url:GET|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions",
+    "url:GET|/api/v1/courses/:course_id/assignments/:assignment_id/submissions",
+]
+
+
 def build_auth_url(
     canvas_url: str, client_id: str, redirect_uri: str, state: str
 ) -> str:
@@ -16,6 +24,7 @@ def build_auth_url(
             "client_id": client_id,
             "redirect_uri": redirect_uri,
             "response_type": "code",
+            "scope": " ".join(CANVAS_API_SCOPES),
             "state": state,
         }
     )
@@ -65,6 +74,22 @@ def store_canvas_token(
     )
 
 
+def delete_canvas_token(
+    course_id: str,
+    canvas_user_id: str,
+    table=None,
+) -> None:
+    """Delete a stored Canvas OAuth token (e.g. when Canvas returns 401)."""
+    if table is None:
+        table = get_dynamodb_table()
+    table.delete_item(
+        Key={
+            "pk": f"CANVAS_TOKEN#{canvas_user_id}",
+            "sk": f"COURSE#{course_id}",
+        }
+    )
+
+
 def get_canvas_token(
     course_id: str,
     canvas_user_id: str,
@@ -72,8 +97,11 @@ def get_canvas_token(
 ) -> str | None:
     """Look up stored Canvas OAuth access token from DynamoDB.
 
-    Returns access_token string or None if not found.
+    Returns access_token string or None if expired or not found.
+    DynamoDB TTL deletion is eventually consistent, so we check expiry ourselves.
     """
+    import time
+
     if table is None:
         table = get_dynamodb_table()
     response = table.get_item(
@@ -84,5 +112,9 @@ def get_canvas_token(
     )
     item = response.get("Item")
     if item is None:
+        return None
+    # Check expiry — ttl is epoch seconds
+    ttl = item.get("ttl")
+    if ttl and int(ttl) < int(time.time()):
         return None
     return item.get("access_token")

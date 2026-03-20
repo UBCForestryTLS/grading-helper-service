@@ -1,12 +1,11 @@
 """LTI 1.3 endpoints: OIDC login, launch, JWKS, tool configuration, and Canvas integration."""
 
+import logging
 from html import escape
 from urllib.parse import urlencode
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
-
 from src.auth.session import SessionUser, create_session_token, require_session
 from src.core.config import get_settings
 from src.lti.jwt_validation import validate_launch_token
@@ -14,6 +13,8 @@ from src.lti.key_manager import get_public_jwk
 from src.lti.launch_store import LaunchStore
 from src.lti.state import LTIStateStore
 from src.lti.ui import render_instructor_ui
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lti", tags=["lti"])
 jwks_router = APIRouter(tags=["lti"])
@@ -95,9 +96,11 @@ async def lti_launch(request: Request):
 
     # Store launch context and create session token
     context = claims.get("https://purl.imsglobal.org/spec/lti/claim/context", {})
+    custom = claims.get("https://purl.imsglobal.org/spec/lti/claim/custom", {})
     roles_raw = claims.get("https://purl.imsglobal.org/spec/lti/claim/roles", [])
-    course_id = context.get("id", "")
-    canvas_user_id = claims.get("sub", "")
+    # Prefer Canvas numeric IDs from custom claims; fall back to opaque LTI IDs
+    course_id = str(custom.get("canvas_course_id", context.get("id", "")))
+    canvas_user_id = str(custom.get("canvas_user_id", claims.get("sub", "")))
 
     launch_store = LaunchStore()
     launch_id = launch_store.create(claims)
@@ -162,6 +165,32 @@ def lti_config():
 # --- Canvas integration routes ---
 
 
+def _extract_answers(submission_data: list[dict]) -> list[dict]:
+    """Extract student answers from Canvas submission_data.
+
+    Canvas stores answers differently per question type:
+    - essay_question / short_answer_question: answer text in "text" field
+    - fill_in_multiple_blanks_question: answer in "answer_for_<blank>" fields, "text" is empty
+    """
+    answers = []
+    for item in submission_data:
+        question_id = item.get("question_id")
+        # Primary answer field
+        answer = item.get("text", "")
+
+        # For fill_in_multiple_blanks, text is empty — collect answer_for_* fields
+        if not answer:
+            blank_answers = []
+            for key, value in item.items():
+                if key.startswith("answer_for_") and value:
+                    blank_answers.append(str(value))
+            if blank_answers:
+                answer = "; ".join(blank_answers)
+
+        answers.append({"question_id": question_id, "answer": answer})
+    return answers
+
+
 class LTIJobCreate(BaseModel):
     """Request body for creating a grading job via LTI."""
 
@@ -186,8 +215,10 @@ def list_lti_quizzes(
     Requires a valid Canvas OAuth token stored for this user/course.
     Returns 401 if not yet authorized via OAuth.
     """
+    from httpx import HTTPStatusError
+
     from src.lti.canvas_api import CanvasAPIClient
-    from src.lti.oauth import get_canvas_token
+    from src.lti.oauth import delete_canvas_token, get_canvas_token
 
     settings = get_settings()
     if not settings.api_canvas_url:
@@ -203,8 +234,30 @@ def list_lti_quizzes(
             detail="Canvas OAuth token not found. Please authorize via /lti/oauth/authorize.",
         )
 
-    with CanvasAPIClient(settings.api_canvas_url, token) as client:
-        return client.list_quizzes(session.course_id)
+    logger.info(
+        "list_lti_quizzes: user=%s, course=%s, token_prefix=%s",
+        session.canvas_user_id,
+        session.course_id,
+        token[:10] + "..." if token else "None",
+    )
+
+    try:
+        with CanvasAPIClient(settings.api_canvas_url, token) as client:
+            return client.list_quizzes(session.course_id)
+    except HTTPStatusError as e:
+        if e.response.status_code == 401:
+            logger.warning(
+                "Canvas 401: user=%s, course=%s, response=%s",
+                session.canvas_user_id,
+                session.course_id,
+                e.response.text[:500],
+            )
+            delete_canvas_token(session.course_id, session.canvas_user_id)
+            raise HTTPException(
+                status_code=401,
+                detail=f"Canvas rejected token: {e.response.text[:200]}",
+            )
+        raise
 
 
 @router.post("/jobs")
@@ -213,8 +266,10 @@ def lti_create_job(
     session: SessionUser = Depends(require_session),
 ):
     """Create a grading job by fetching quiz data from Canvas and ingesting it."""
+    from httpx import HTTPStatusError
+
     from src.lti.canvas_api import CanvasAPIClient
-    from src.lti.oauth import get_canvas_token
+    from src.lti.oauth import delete_canvas_token, get_canvas_token
     from src.services.ingestion import IngestionService
 
     settings = get_settings()
@@ -234,30 +289,86 @@ def lti_create_job(
     job_name = body.quiz_title or f"Quiz {body.quiz_id}"
     try:
         with CanvasAPIClient(settings.api_canvas_url, token) as canvas_client:
+            # Use list_quizzes and filter instead of get_quiz, because the
+            # individual quiz scope (quizzes/:id) isn't on the API key — only
+            # the list scope (quizzes) is.
+            quizzes = canvas_client.list_quizzes(session.course_id)
+            quiz = next(
+                (q for q in quizzes if str(q.get("id")) == str(body.quiz_id)),
+                None,
+            )
+            if not quiz:
+                raise HTTPException(
+                    status_code=404, detail=f"Quiz {body.quiz_id} not found"
+                )
+            assignment_id = quiz.get("assignment_id")
+            logger.info(
+                "Quiz %s: assignment_id=%s, quiz_type=%s",
+                body.quiz_id,
+                assignment_id,
+                quiz.get("quiz_type"),
+            )
+
             questions = canvas_client.get_quiz_questions(
                 session.course_id, body.quiz_id
             )
             quiz_submissions = canvas_client.get_quiz_submissions(
                 session.course_id, body.quiz_id
             )
-            answers_by_id: dict[str, list[dict]] = {}
-            for qs in quiz_submissions:
-                qs_id = str(qs["id"])
-                answers_by_id[qs_id] = canvas_client.get_submission_answers(qs_id)
+
+            # Get student answers via Assignments API (submission_history).
+            # Requires "Allow Include Parameters" enabled on the Canvas API
+            # Developer Key — without it, Canvas silently ignores include[].
+            answers_by_user: dict[str, list[dict]] = {}
+            if assignment_id:
+                assignment_subs = canvas_client.get_assignment_submissions(
+                    session.course_id, str(assignment_id)
+                )
+
+                # Build answers keyed by user_id from submission_data
+                for sub in assignment_subs:
+                    user_id = str(sub.get("user_id", ""))
+                    for attempt in sub.get("submission_history", []):
+                        sd = attempt.get("submission_data")
+                        if sd:
+                            answers_by_user[user_id] = _extract_answers(sd)
+
+            if not answers_by_user and quiz_submissions:
+                logger.warning(
+                    "No student answers found for %d quiz submissions. "
+                    "Ensure 'Allow Include Parameters' is enabled on the "
+                    "Canvas API Developer Key.",
+                    len(quiz_submissions),
+                )
+    except HTTPStatusError as e:
+        if e.response.status_code == 401:
+            delete_canvas_token(session.course_id, session.canvas_user_id)
+            raise HTTPException(
+                status_code=401,
+                detail="Canvas token expired or revoked. Please re-authorize.",
+            )
+        logger.exception("Canvas API error")
+        raise HTTPException(
+            status_code=502, detail=f"Failed to fetch quiz data from Canvas: {e}"
+        )
     except Exception as e:
+        logger.exception("Failed to fetch quiz data from Canvas")
         raise HTTPException(
             status_code=502, detail=f"Failed to fetch quiz data from Canvas: {e}"
         )
 
     service = IngestionService()
-    job = service.ingest_from_canvas_api(
-        course_id=session.course_id,
-        quiz_id=body.quiz_id,
-        job_name=job_name,
-        questions=questions,
-        quiz_submissions=quiz_submissions,
-        answers_by_id=answers_by_id,
-    )
+    try:
+        job = service.ingest_from_canvas_api(
+            course_id=session.course_id,
+            quiz_id=body.quiz_id,
+            job_name=job_name,
+            questions=questions,
+            quiz_submissions=quiz_submissions,
+            answers_by_user=answers_by_user,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     return job
 
 
@@ -339,6 +450,14 @@ async def oauth_callback(
         )
 
     import time
+
+    logger.info(
+        "OAuth token exchange success: user=%s, course=%s, expires_in=%s, token_prefix=%s",
+        launch["canvas_user_id"],
+        launch["course_id"],
+        token_data.get("expires_in"),
+        token_data.get("access_token", "")[:10] + "...",
+    )
 
     expires_at = int(time.time()) + token_data.get("expires_in", 3600)
     store_canvas_token(

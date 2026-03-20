@@ -23,6 +23,7 @@ class LaunchStore:
         launch_id = uuid4().hex
 
         context = claims.get("https://purl.imsglobal.org/spec/lti/claim/context", {})
+        custom = claims.get("https://purl.imsglobal.org/spec/lti/claim/custom", {})
         ags_endpoint = claims.get(
             "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint", {}
         )
@@ -34,12 +35,13 @@ class LaunchStore:
         if isinstance(ags_scope, str):
             ags_scope = ags_scope.split()
 
+        # Prefer Canvas numeric IDs from custom claims; fall back to opaque LTI IDs
         item: dict = {
             "pk": f"LAUNCH#{launch_id}",
             "sk": "LAUNCH",
             "launch_id": launch_id,
-            "canvas_user_id": claims.get("sub", ""),
-            "course_id": context.get("id", ""),
+            "canvas_user_id": str(custom.get("canvas_user_id", claims.get("sub", ""))),
+            "course_id": str(custom.get("canvas_course_id", context.get("id", ""))),
             "iss": claims.get("iss", ""),
             "ttl": int(time.time()) + 86400,  # 24h
         }

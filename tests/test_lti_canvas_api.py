@@ -105,9 +105,7 @@ class TestGetQuizSubmissions:
             {"id": 201, "user_id": 501, "quiz_id": 50},
             {"id": 202, "user_id": 502, "quiz_id": 50},
         ]
-        mock_resp = make_mock_response(
-            {"quiz_submissions": quiz_submissions, "submissions": []}
-        )
+        mock_resp = make_mock_response({"quiz_submissions": quiz_submissions})
 
         with patch("src.lti.canvas_api.httpx.Client") as mock_client_cls:
             mock_http = MagicMock()
@@ -118,12 +116,9 @@ class TestGetQuizSubmissions:
             result = client.get_quiz_submissions("course-1", "quiz-1")
 
         assert result == quiz_submissions
-        mock_http.get.assert_called_once_with(
-            "https://canvas.example.com/api/v1/courses/course-1/quizzes/quiz-1/submissions"
-        )
 
     def test_returns_empty_list_when_no_submissions(self):
-        mock_resp = make_mock_response({"quiz_submissions": [], "submissions": []})
+        mock_resp = make_mock_response({"quiz_submissions": []})
 
         with patch("src.lti.canvas_api.httpx.Client") as mock_client_cls:
             mock_http = MagicMock()
@@ -136,23 +131,22 @@ class TestGetQuizSubmissions:
         assert result == []
 
 
-class TestGetSubmissionAnswers:
-    def test_returns_question_answers_for_submission(self):
-        answers = [
+class TestGetAssignmentSubmissions:
+    def test_returns_submissions_with_history(self):
+        submissions = [
             {
-                "id": "qa-1",
-                "quiz_submission_id": 201,
-                "question_id": 101,
-                "answer": "Plants use sunlight",
-            },
-            {
-                "id": "qa-2",
-                "quiz_submission_id": 201,
-                "question_id": 102,
-                "answer": "Photosynthesis",
-            },
+                "id": 301,
+                "user_id": 501,
+                "submission_history": [
+                    {
+                        "submission_data": [
+                            {"question_id": 101, "text": "My answer"},
+                        ]
+                    }
+                ],
+            }
         ]
-        mock_resp = make_mock_response(answers)
+        mock_resp = make_mock_response(submissions)
 
         with patch("src.lti.canvas_api.httpx.Client") as mock_client_cls:
             mock_http = MagicMock()
@@ -160,25 +154,18 @@ class TestGetSubmissionAnswers:
             mock_http.get.return_value = mock_resp
 
             client = CanvasAPIClient("https://canvas.example.com", "token")
-            result = client.get_submission_answers("201")
+            result = client.get_assignment_submissions("course-1", "100")
 
-        assert result == answers
-        mock_http.get.assert_called_once_with(
-            "https://canvas.example.com/api/v1/quiz_submissions/201/questions"
+        assert len(result) == 1
+        assert (
+            result[0]["submission_history"][0]["submission_data"][0]["text"]
+            == "My answer"
         )
-
-    def test_returns_empty_list_when_no_answers(self):
-        mock_resp = make_mock_response([])
-
-        with patch("src.lti.canvas_api.httpx.Client") as mock_client_cls:
-            mock_http = MagicMock()
-            mock_client_cls.return_value = mock_http
-            mock_http.get.return_value = mock_resp
-
-            client = CanvasAPIClient("https://canvas.example.com", "token")
-            result = client.get_submission_answers("999")
-
-        assert result == []
+        mock_http.get.assert_called_once_with(
+            "https://canvas.example.com/api/v1/courses/course-1"
+            "/assignments/100/submissions"
+            "?include[]=submission_history&per_page=100"
+        )
 
 
 class TestContextManager:
