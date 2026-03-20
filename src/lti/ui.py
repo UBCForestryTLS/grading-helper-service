@@ -51,9 +51,57 @@ def render_instructor_ui(
     .badge {{ display: inline-block; padding: 2px 8px; border-radius: 12px;
               font-size: 0.8em; font-weight: 600; }}
     .badge-pending {{ background: #fff3cd; color: #856404; }}
+    .badge-processing {{ background: #cce5ff; color: #004085; }}
     .badge-done {{ background: #d4edda; color: #155724; }}
+    .badge-failed {{ background: #f8d7da; color: #721c24; }}
     a.authorize-link {{ color: #0066cc; text-decoration: none; }}
     a.authorize-link:hover {{ text-decoration: underline; }}
+
+    .tab-bar {{ display: flex; border-bottom: 2px solid #ddd; margin-bottom: 16px; }}
+    .tab {{ padding: 10px 20px; cursor: pointer; border: none; background: none;
+            font-size: 0.95em; color: #666; border-bottom: 2px solid transparent;
+            margin-bottom: -2px; }}
+    .tab.active {{ color: #0066cc; border-bottom-color: #0066cc; font-weight: 600; }}
+    .tab:hover {{ color: #0052a3; background: none; }}
+    .tab-content {{ display: none; }}
+    .tab-content.active {{ display: block; }}
+
+    .steps {{ display: flex; align-items: center; padding: 12px 16px;
+              background: white; border-radius: 8px; margin-bottom: 16px;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
+    .step {{ display: flex; align-items: center; color: #999; font-size: 0.9em; }}
+    .step.active {{ color: #0066cc; font-weight: 600; }}
+    .step.done {{ color: #006600; }}
+    .step-num {{ display: inline-flex; align-items: center; justify-content: center;
+                 width: 22px; height: 22px; border-radius: 50%;
+                 background: #ddd; color: #666; font-size: 0.8em; font-weight: 700;
+                 margin-right: 6px; }}
+    .step.active .step-num {{ background: #0066cc; color: white; }}
+    .step.done .step-num {{ background: #006600; color: white; }}
+    .step-arrow {{ margin: 0 12px; color: #ccc; font-size: 1.1em; }}
+
+    .stats-bar {{ display: flex; gap: 24px; padding: 14px 20px; background: #f0f7ff;
+                  border-radius: 6px; margin-bottom: 16px; }}
+    .stat {{ text-align: center; flex: 1; }}
+    .stat-value {{ font-size: 1.3em; font-weight: 700; color: #0066cc; }}
+    .stat-label {{ font-size: 0.8em; color: #666; margin-top: 2px; }}
+
+    .student-header td {{ background: #e8f0fe; font-weight: 600;
+                          padding: 10px 8px; border-bottom: 2px solid #c4d8f0; }}
+
+    .results-header {{ display: flex; justify-content: space-between;
+                       align-items: center; margin-bottom: 12px; }}
+    .results-header h2 {{ margin: 0; }}
+
+    .btn-small {{ padding: 4px 12px; font-size: 0.85em; }}
+    .btn-link {{ background: none; border: none; color: #0066cc; cursor: pointer;
+                 font-size: 0.9em; padding: 0; }}
+    .btn-link:hover {{ text-decoration: underline; background: none; }}
+
+    #results-table td:nth-child(2), #results-table td:nth-child(5) {{
+      max-width: 250px; word-break: break-word;
+    }}
+    #history-table tbody tr:hover {{ background: #f8f8f8; }}
   </style>
 </head>
 <body>
@@ -66,51 +114,114 @@ def render_instructor_ui(
     </div>
   </div>
 
-  <div id="section-quiz" class="card">
-    <h2>Select Quiz to Grade</h2>
-    <button id="btn-load-quizzes" onclick="loadQuizzes()">Load Quizzes</button>
-    <div id="quiz-list-container" class="hidden">
+  <div class="tab-bar">
+    <button class="tab active" id="tab-btn-grade" onclick="switchTab('grade')">Grade a Quiz</button>
+    <button class="tab" id="tab-btn-history" onclick="switchTab('history')">Past Jobs</button>
+  </div>
+
+  <div id="tab-grade" class="tab-content active">
+    <div class="steps">
+      <div class="step active" id="step-1">
+        <span class="step-num">1</span> Select Quiz
+      </div>
+      <span class="step-arrow">&rarr;</span>
+      <div class="step" id="step-2">
+        <span class="step-num">2</span> Grade
+      </div>
+      <span class="step-arrow">&rarr;</span>
+      <div class="step" id="step-3">
+        <span class="step-num">3</span> Review &amp; Push
+      </div>
+    </div>
+
+    <div id="section-quiz" class="card">
+      <h2>Select Quiz to Grade</h2>
+      <button id="btn-load-quizzes" onclick="loadQuizzes()">Load Quizzes</button>
+      <div id="quiz-list-container" class="hidden">
+        <br>
+        <select id="quiz-select">
+          <option value="">-- Select a quiz --</option>
+        </select>
+        <button id="btn-start-grading" onclick="startGrading()" disabled>
+          Start AI Grading
+        </button>
+      </div>
+      <div id="auth-prompt" class="hidden">
+        <p>Canvas access not authorized yet.</p>
+        <a class="authorize-link" id="authorize-link" href="#">
+          Click here to authorize Canvas access
+        </a>
+      </div>
+      <div id="quiz-error" class="error hidden"></div>
+    </div>
+
+    <div id="section-grading" class="card hidden">
+      <h2>Grading in Progress</h2>
+      <div id="grading-status" class="status">Starting...</div>
+    </div>
+
+    <div id="section-results" class="card hidden">
+      <div class="results-header">
+        <h2 id="results-title">Grading Results</h2>
+        <button id="btn-back-history" class="btn-link hidden"
+                onclick="backToHistory()">&larr; Back to Past Jobs</button>
+      </div>
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-value" id="stat-students">0</div>
+          <div class="stat-label">Students</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-questions">0</div>
+          <div class="stat-label">Questions</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-avg">&mdash;</div>
+          <div class="stat-label">Avg Score</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-max">&mdash;</div>
+          <div class="stat-label">Max Points</div>
+        </div>
+      </div>
+      <div id="results-summary" class="status"></div>
       <br>
-      <select id="quiz-select">
-        <option value="">-- Select a quiz --</option>
-      </select>
-      <button id="btn-start-grading" onclick="startGrading()" disabled>
-        Start AI Grading
-      </button>
+      <table id="results-table">
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Student Answer</th>
+            <th>AI Grade</th>
+            <th>Max</th>
+            <th>Feedback</th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+      <br>
+      <button id="btn-passback" onclick="pushGrades()">Push Grades to Canvas</button>
+      <div id="passback-status" class="status hidden"></div>
     </div>
-    <div id="auth-prompt" class="hidden">
-      <p>Canvas access not authorized yet.</p>
-      <a class="authorize-link" id="authorize-link" href="#">
-        Click here to authorize Canvas access
-      </a>
-    </div>
-    <div id="quiz-error" class="error hidden"></div>
   </div>
 
-  <div id="section-grading" class="card hidden">
-    <h2>Grading in Progress</h2>
-    <div id="grading-status" class="status">Starting...</div>
-  </div>
-
-  <div id="section-results" class="card hidden">
-    <h2>Grading Results</h2>
-    <div id="results-summary" class="status"></div>
-    <br>
-    <table id="results-table">
-      <thead>
-        <tr>
-          <th>Question</th>
-          <th>Student Answer</th>
-          <th>AI Grade</th>
-          <th>Max</th>
-          <th>Feedback</th>
-        </tr>
-      </thead>
-      <tbody id="results-tbody"></tbody>
-    </table>
-    <br>
-    <button id="btn-passback" onclick="pushGrades()">Push Grades to Canvas</button>
-    <div id="passback-status" class="status hidden"></div>
+  <div id="tab-history" class="tab-content">
+    <div class="card">
+      <h2>Past Grading Jobs</h2>
+      <table id="history-table">
+        <thead>
+          <tr>
+            <th>Quiz Name</th>
+            <th>Date</th>
+            <th>Submissions</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+      <div id="history-empty" class="status hidden">No past jobs found.</div>
+      <div id="history-error" class="error hidden"></div>
+    </div>
   </div>
 
   <script>
@@ -119,6 +230,7 @@ def render_instructor_ui(
     const LAUNCH_ID = '{safe_launch_id}';
     let currentJobId = null;
     let pollTimer = null;
+    let cameFromHistory = false;
 
     function authHeaders() {{
       return {{
@@ -133,9 +245,43 @@ def render_instructor_ui(
       el.classList.remove('hidden');
     }}
 
+    async function getErrorMessage(resp) {{
+      try {{
+        const body = await resp.clone().json();
+        if (body.detail && typeof body.detail === 'string') return body.detail;
+      }} catch (e) {{}}
+      const messages = {{
+        403: 'You do not have permission to perform this action.',
+        404: 'The requested resource was not found.',
+        409: 'This quiz has already been graded.',
+        422: 'No gradable submissions were found in this quiz.',
+        502: 'Could not reach Canvas. Please try again later.',
+        503: 'Canvas API is not configured. Contact your administrator.',
+      }};
+      return messages[resp.status] || 'Something went wrong. Please try again.';
+    }}
+
+    function switchTab(tab) {{
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('tab-btn-' + tab).classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+      if (tab === 'history') loadPastJobs();
+    }}
+
+    function setStep(n) {{
+      [1, 2, 3].forEach(i => {{
+        const el = document.getElementById('step-' + i);
+        el.classList.remove('active', 'done');
+        if (i < n) el.classList.add('done');
+        if (i === n) el.classList.add('active');
+      }});
+    }}
+
     async function loadQuizzes() {{
       document.getElementById('btn-load-quizzes').disabled = true;
       document.getElementById('quiz-error').classList.add('hidden');
+      document.getElementById('auth-prompt').classList.add('hidden');
       try {{
         const resp = await fetch(BASE_URL + '/lti/quizzes?launch_id=' + LAUNCH_ID, {{
           headers: authHeaders(),
@@ -147,7 +293,11 @@ def render_instructor_ui(
           document.getElementById('btn-load-quizzes').disabled = false;
           return;
         }}
-        if (!resp.ok) throw new Error('Failed to load quizzes: ' + resp.status);
+        if (!resp.ok) {{
+          showError('quiz-error', await getErrorMessage(resp));
+          document.getElementById('btn-load-quizzes').disabled = false;
+          return;
+        }}
         const quizzes = await resp.json();
         const select = document.getElementById('quiz-select');
         quizzes.forEach(q => {{
@@ -161,15 +311,19 @@ def render_instructor_ui(
           document.getElementById('btn-start-grading').disabled = !select.value;
         }});
       }} catch (e) {{
-        showError('quiz-error', e.message);
+        showError('quiz-error', 'Could not connect to the server. Please try again.');
         document.getElementById('btn-load-quizzes').disabled = false;
       }}
     }}
 
     async function startGrading() {{
-      const quizId = document.getElementById('quiz-select').value;
+      const select = document.getElementById('quiz-select');
+      const quizId = select.value;
       if (!quizId) return;
+      const quizTitle = select.options[select.selectedIndex].text;
+
       document.getElementById('btn-start-grading').disabled = true;
+      setStep(2);
       document.getElementById('section-grading').classList.remove('hidden');
       document.getElementById('grading-status').textContent = 'Creating grading job...';
 
@@ -177,23 +331,35 @@ def render_instructor_ui(
         const resp = await fetch(BASE_URL + '/lti/jobs', {{
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({{ launch_id: LAUNCH_ID, quiz_id: quizId }}),
+          body: JSON.stringify({{ launch_id: LAUNCH_ID, quiz_id: quizId, quiz_title: quizTitle }}),
         }});
-        if (!resp.ok) throw new Error('Failed to create job: ' + resp.status);
+        if (!resp.ok) {{
+          document.getElementById('grading-status').textContent = await getErrorMessage(resp);
+          document.getElementById('btn-start-grading').disabled = false;
+          setStep(1);
+          return;
+        }}
         const job = await resp.json();
         currentJobId = job.job_id;
 
-        // Start grading
+        document.getElementById('grading-status').textContent = 'Starting AI grading...';
         const gradeResp = await fetch(BASE_URL + '/jobs/' + currentJobId + '/grade', {{
           method: 'POST',
           headers: authHeaders(),
         }});
-        if (!gradeResp.ok) throw new Error('Failed to start grading: ' + gradeResp.status);
+        if (!gradeResp.ok) {{
+          document.getElementById('grading-status').textContent = await getErrorMessage(gradeResp);
+          document.getElementById('btn-start-grading').disabled = false;
+          return;
+        }}
 
+        document.getElementById('grading-status').textContent = 'Grading in progress...';
         pollJobStatus();
       }} catch (e) {{
-        document.getElementById('grading-status').textContent = 'Error: ' + e.message;
+        document.getElementById('grading-status').textContent =
+          'Could not connect to the server. Please try again.';
         document.getElementById('btn-start-grading').disabled = false;
+        setStep(1);
       }}
     }}
 
@@ -210,6 +376,7 @@ def render_instructor_ui(
 
           if (job.status === 'COMPLETED') {{
             clearInterval(pollTimer);
+            setStep(3);
             await showResults();
           }} else if (job.status === 'FAILED') {{
             clearInterval(pollTimer);
@@ -223,40 +390,196 @@ def render_instructor_ui(
     }}
 
     async function showResults() {{
+      document.getElementById('btn-passback').disabled = false;
+      document.getElementById('passback-status').classList.add('hidden');
+
       const resp = await fetch(BASE_URL + '/jobs/' + currentJobId + '/submissions', {{
         headers: authHeaders(),
       }});
       if (!resp.ok) return;
       const subs = await resp.json();
 
+      const groups = {{}};
+      const order = [];
+      subs.forEach(sub => {{
+        const uid = sub.canvas_user_id || 'unknown';
+        if (!groups[uid]) {{
+          groups[uid] = [];
+          order.push(uid);
+        }}
+        groups[uid].push(sub);
+      }});
+
+      const totalStudents = order.length;
+      const questionPoints = {{}};
+      subs.forEach(s => {{ questionPoints[s.question_id] = s.points_possible; }});
+      const uniqueQuestions = Object.keys(questionPoints).length;
+      const maxPoints = Object.values(questionPoints).reduce((a, b) => a + b, 0);
+
+      let percentSum = 0;
+      let countedStudents = 0;
+      order.forEach(uid => {{
+        let s = 0, m = 0;
+        groups[uid].forEach(sub => {{
+          if (sub.ai_grade != null) s += sub.ai_grade;
+          m += sub.points_possible;
+        }});
+        if (m > 0) {{
+          percentSum += (s / m * 100);
+          countedStudents++;
+        }}
+      }});
+      const avgPercent = countedStudents > 0
+        ? (percentSum / countedStudents).toFixed(1) + '%' : '\u2014';
+
+      document.getElementById('stat-students').textContent = totalStudents;
+      document.getElementById('stat-questions').textContent = uniqueQuestions;
+      document.getElementById('stat-avg').textContent = avgPercent;
+      document.getElementById('stat-max').textContent = maxPoints > 0
+        ? maxPoints.toFixed(1) : '\u2014';
+
       const tbody = document.getElementById('results-tbody');
       tbody.innerHTML = '';
-      subs.forEach(sub => {{
-        const tr = document.createElement('tr');
-        [
-          sub.question_name || ('Q' + sub.question_id),
-          sub.student_answer,
-          sub.ai_grade != null ? sub.ai_grade : '—',
-          sub.points_possible,
-          sub.ai_feedback || '—',
-        ].forEach(val => {{
-          const td = document.createElement('td');
-          td.textContent = val;
-          tr.appendChild(td);
+
+      order.forEach(uid => {{
+        const studentSubs = groups[uid];
+        let studentScore = 0;
+        let studentMax = 0;
+        studentSubs.forEach(s => {{
+          if (s.ai_grade != null) studentScore += s.ai_grade;
+          studentMax += s.points_possible;
         }});
-        tbody.appendChild(tr);
+
+        const headerRow = document.createElement('tr');
+        headerRow.classList.add('student-header');
+        const headerTd = document.createElement('td');
+        headerTd.colSpan = 5;
+        headerTd.textContent = 'Student ' + uid + '  \u2014  ' +
+          studentScore.toFixed(1) + ' / ' + studentMax.toFixed(1) + ' points';
+        headerRow.appendChild(headerTd);
+        tbody.appendChild(headerRow);
+
+        studentSubs.forEach(sub => {{
+          const tr = document.createElement('tr');
+          [
+            sub.question_name || ('Q' + sub.question_id),
+            sub.student_answer,
+            sub.ai_grade != null ? sub.ai_grade : '\u2014',
+            sub.points_possible,
+            sub.ai_feedback || '\u2014',
+          ].forEach(val => {{
+            const td = document.createElement('td');
+            td.textContent = val;
+            tr.appendChild(td);
+          }});
+          tbody.appendChild(tr);
+        }});
       }});
 
       const graded = subs.filter(s => s.ai_grade != null).length;
       document.getElementById('results-summary').textContent =
-        graded + ' of ' + subs.length + ' submissions graded.';
+        graded + ' of ' + subs.length + ' answers graded.';
       document.getElementById('section-results').classList.remove('hidden');
+    }}
+
+    async function loadPastJobs() {{
+      const tbody = document.getElementById('history-tbody');
+      const emptyMsg = document.getElementById('history-empty');
+      const errorEl = document.getElementById('history-error');
+      tbody.innerHTML = '';
+      emptyMsg.classList.add('hidden');
+      errorEl.classList.add('hidden');
+
+      try {{
+        const resp = await fetch(BASE_URL + '/jobs', {{ headers: authHeaders() }});
+        if (!resp.ok) {{
+          showError('history-error', await getErrorMessage(resp));
+          return;
+        }}
+        const jobs = await resp.json();
+        if (jobs.length === 0) {{
+          emptyMsg.classList.remove('hidden');
+          return;
+        }}
+        jobs.forEach(job => {{
+          const tr = document.createElement('tr');
+
+          const tdName = document.createElement('td');
+          tdName.textContent = job.job_name;
+          tr.appendChild(tdName);
+
+          const tdDate = document.createElement('td');
+          tdDate.textContent = new Date(job.created_at).toLocaleDateString();
+          tr.appendChild(tdDate);
+
+          const tdSubs = document.createElement('td');
+          tdSubs.textContent = job.total_submissions;
+          tr.appendChild(tdSubs);
+
+          const tdStatus = document.createElement('td');
+          const badge = document.createElement('span');
+          badge.classList.add('badge');
+          const statusClass = {{
+            'COMPLETED': 'badge-done',
+            'FAILED': 'badge-failed',
+            'PROCESSING': 'badge-processing',
+            'PENDING': 'badge-pending',
+          }}[job.status] || 'badge-pending';
+          badge.classList.add(statusClass);
+          badge.textContent = job.status;
+          tdStatus.appendChild(badge);
+          tr.appendChild(tdStatus);
+
+          const tdAction = document.createElement('td');
+          if (job.status === 'COMPLETED') {{
+            const btn = document.createElement('button');
+            btn.textContent = 'View Results';
+            btn.classList.add('btn-small');
+            btn.addEventListener('click', () => viewJobResults(job.job_id, job.job_name));
+            tdAction.appendChild(btn);
+          }}
+          tr.appendChild(tdAction);
+
+          tbody.appendChild(tr);
+        }});
+      }} catch (e) {{
+        showError('history-error', 'Could not load past jobs. Please try again.');
+      }}
+    }}
+
+    async function viewJobResults(jobId, jobName) {{
+      currentJobId = jobId;
+      cameFromHistory = true;
+
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('tab-btn-grade').classList.add('active');
+      document.getElementById('tab-grade').classList.add('active');
+
+      setStep(3);
+      document.getElementById('section-quiz').classList.add('hidden');
+      document.getElementById('section-grading').classList.add('hidden');
+      document.getElementById('results-title').textContent = jobName;
+      document.getElementById('btn-back-history').classList.remove('hidden');
+      await showResults();
+    }}
+
+    function backToHistory() {{
+      cameFromHistory = false;
+      document.getElementById('section-quiz').classList.remove('hidden');
+      document.getElementById('section-results').classList.add('hidden');
+      document.getElementById('btn-back-history').classList.add('hidden');
+      document.getElementById('results-title').textContent = 'Grading Results';
+      document.getElementById('passback-status').classList.add('hidden');
+      document.getElementById('btn-passback').disabled = false;
+      setStep(1);
+      switchTab('history');
     }}
 
     async function pushGrades() {{
       document.getElementById('btn-passback').disabled = true;
       document.getElementById('passback-status').classList.remove('hidden');
-      document.getElementById('passback-status').textContent = 'Pushing grades...';
+      document.getElementById('passback-status').textContent = 'Pushing grades to Canvas...';
 
       try {{
         const resp = await fetch(BASE_URL + '/lti/passback/' + currentJobId, {{
@@ -264,13 +587,18 @@ def render_instructor_ui(
           headers: authHeaders(),
           body: JSON.stringify({{ launch_id: LAUNCH_ID }}),
         }});
-        if (!resp.ok) throw new Error('Passback failed: ' + resp.status);
+        if (!resp.ok) {{
+          document.getElementById('passback-status').textContent = await getErrorMessage(resp);
+          document.getElementById('btn-passback').disabled = false;
+          return;
+        }}
         const result = await resp.json();
         document.getElementById('passback-status').textContent =
           'Done! ' + result.submitted + ' grades submitted to Canvas.' +
           (result.errors.length ? ' Errors: ' + result.errors.join(', ') : '');
       }} catch (e) {{
-        document.getElementById('passback-status').textContent = 'Error: ' + e.message;
+        document.getElementById('passback-status').textContent =
+          'Could not connect to the server. Please try again.';
         document.getElementById('btn-passback').disabled = false;
       }}
     }}
