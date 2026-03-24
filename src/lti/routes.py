@@ -366,6 +366,7 @@ def lti_create_job(
             questions=questions,
             quiz_submissions=quiz_submissions,
             answers_by_user=answers_by_user,
+            assignment_id=str(assignment_id or ""),
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))

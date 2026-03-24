@@ -20,6 +20,7 @@ class GradingJob(BaseModel):
     job_id: UUID = Field(default_factory=uuid4)
     course_id: str
     quiz_id: str
+    assignment_id: str = ""
     job_name: str
     status: JobStatus = JobStatus.PENDING
     total_questions: int = 0

@@ -87,6 +87,7 @@ class IngestionService:
         questions: list[dict],
         quiz_submissions: list[dict],
         answers_by_user: dict[str, list[dict]],
+        assignment_id: str = "",
     ) -> GradingJob:
         """Create a grading job directly from Canvas REST API response data.
 
@@ -154,6 +155,7 @@ class IngestionService:
             job_id=job_id,
             course_id=course_id,
             quiz_id=quiz_id,
+            assignment_id=assignment_id,
             job_name=job_name,
             total_questions=len(gradable_questions),
             total_submissions=len(submissions),

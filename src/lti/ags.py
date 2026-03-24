@@ -1,13 +1,15 @@
 """LTI Advantage Services (AGS) grade passback to Canvas."""
 
+import logging
 import time
 from datetime import datetime, timezone
 from uuid import UUID
+from src.lti.key_manager import get_private_key
 
 import httpx
 import jwt
 
-from src.lti.key_manager import get_private_key
+logger = logging.getLogger(__name__)
 
 
 def get_ags_token(client_id: str, auth_token_url: str) -> str:
@@ -40,6 +42,8 @@ def get_ags_token(client_id: str, auth_token_url: str) -> str:
     scope = " ".join(
         [
             "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
+            "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
+            "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
             "https://purl.imsglobal.org/spec/lti-ags/scope/score",
         ]
     )
@@ -95,11 +99,69 @@ def submit_score(
     return response.json()
 
 
+def find_or_create_lineitem_url(
+    lineitems_url: str,
+    token: str,
+    assignment_id: str = "",
+    job_name: str = "",
+    max_score: float = 0.0,
+) -> str | None:
+    """Find or create a lineitem URL from the AGS lineitems collection.
+
+    First lists existing lineitems and tries to match by assignment_id or label.
+    If none found, creates a new lineitem for the quiz.
+    """
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.ims.lis.v2.lineitemcontainer+json",
+    }
+    response = httpx.get(lineitems_url, headers=headers)
+    response.raise_for_status()
+    lineitems = response.json()
+
+    # Try to find existing lineitem
+    if assignment_id:
+        for item in lineitems:
+            item_url = item.get("id", "")
+            if item_url.endswith(f"/{assignment_id}"):
+                return item_url
+            if str(item.get("resourceId", "")) == assignment_id:
+                return item_url
+
+    if job_name:
+        for item in lineitems:
+            if item.get("label", "") == job_name:
+                return item.get("id")
+
+    # No existing lineitem found — create one
+    new_lineitem = {
+        "scoreMaximum": max_score if max_score > 0 else 1.0,
+        "label": job_name or "AI Grading",
+        "tag": "grading-helper",
+    }
+    if assignment_id:
+        new_lineitem["resourceId"] = assignment_id
+
+    logger.info("Creating new AGS lineitem: %s", new_lineitem)
+    create_resp = httpx.post(
+        lineitems_url,
+        json=new_lineitem,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/vnd.ims.lis.v2.lineitem+json",
+        },
+    )
+    create_resp.raise_for_status()
+    created = create_resp.json()
+    return created.get("id")
+
+
 def passback_job_grades(
     job_id: str,
     launch_id: str,
     submission_repo=None,
     launch_store=None,
+    job_repo=None,
     table=None,
 ) -> dict:
     """Push AI grades for all graded submissions in a job back to Canvas via AGS.
@@ -108,20 +170,19 @@ def passback_job_grades(
     """
     from src.core.config import get_settings
     from src.lti.launch_store import LaunchStore
+    from src.repositories.grading_job import GradingJobRepository
     from src.repositories.submission import SubmissionRepository
 
     if submission_repo is None:
         submission_repo = SubmissionRepository(table=table)
     if launch_store is None:
         launch_store = LaunchStore(table=table)
+    if job_repo is None:
+        job_repo = GradingJobRepository(table=table)
 
     launch = launch_store.get(launch_id)
     if launch is None:
         return {"submitted": 0, "errors": [f"Launch {launch_id} not found"]}
-
-    lineitem_url = launch.get("ags_lineitem_url", "")
-    if not lineitem_url:
-        return {"submitted": 0, "errors": ["No AGS lineitem URL in launch context"]}
 
     settings = get_settings()
     try:
@@ -133,6 +194,39 @@ def passback_job_grades(
         return {"submitted": 0, "errors": [f"Failed to get AGS token: {e}"]}
 
     submissions = submission_repo.list_by_job(UUID(job_id))
+
+    lineitem_url = launch.get("ags_lineitem_url", "")
+    if not lineitem_url:
+        lineitems_url = launch.get("ags_lineitems_url", "")
+        if not lineitems_url:
+            return {
+                "submitted": 0,
+                "errors": ["No AGS lineitem or lineitems URL in launch context"],
+            }
+        job = job_repo.get(UUID(job_id))
+        if job is None:
+            return {"submitted": 0, "errors": [f"Job {job_id} not found"]}
+
+        try:
+            question_points: dict[int, float] = {}
+            for s in submissions:
+                question_points[s.question_id] = s.points_possible
+            max_score = sum(question_points.values())
+
+            lineitem_url = find_or_create_lineitem_url(
+                lineitems_url=lineitems_url,
+                token=token,
+                assignment_id=job.assignment_id,
+                job_name=job.job_name,
+                max_score=max_score,
+            )
+        except Exception as e:
+            return {"submitted": 0, "errors": [f"Failed to find/create lineitem: {e}"]}
+        if not lineitem_url:
+            return {
+                "submitted": 0,
+                "errors": ["Could not find matching lineitem for this quiz"],
+            }
     submitted = 0
     errors: list[str] = []
 

@@ -49,6 +49,9 @@ class LaunchStore:
         ags_lineitem_url = ags_endpoint.get("lineitem", "")
         if ags_lineitem_url:
             item["ags_lineitem_url"] = ags_lineitem_url
+        ags_lineitems_url = ags_endpoint.get("lineitems", "")
+        if ags_lineitems_url:
+            item["ags_lineitems_url"] = ags_lineitems_url
         if ags_scope:
             item["ags_scope"] = ags_scope
 

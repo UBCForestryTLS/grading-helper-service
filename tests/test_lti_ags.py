@@ -106,6 +106,109 @@ class TestSubmitScore:
         assert "comment" not in payload
 
 
+class TestFindOrCreateLineitemUrl:
+    def test_find_by_assignment_id_url_suffix(self):
+        from src.lti.ags import find_or_create_lineitem_url
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = [
+            {
+                "id": "https://canvas.example.com/api/lti/courses/1/line_items/99",
+                "label": "Other",
+            },
+            {
+                "id": "https://canvas.example.com/api/lti/courses/1/line_items/42",
+                "label": "Quiz 1",
+            },
+        ]
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.get", return_value=mock_resp):
+            url = find_or_create_lineitem_url(
+                lineitems_url="https://canvas.example.com/api/lti/courses/1/line_items",
+                token="tok",
+                assignment_id="42",
+            )
+        assert url == "https://canvas.example.com/api/lti/courses/1/line_items/42"
+
+    def test_find_by_resource_id(self):
+        from src.lti.ags import find_or_create_lineitem_url
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = [
+            {
+                "id": "https://canvas.example.com/line_items/abc",
+                "resourceId": "42",
+                "label": "Quiz 1",
+            },
+        ]
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.get", return_value=mock_resp):
+            url = find_or_create_lineitem_url(
+                lineitems_url="https://canvas.example.com/line_items",
+                token="tok",
+                assignment_id="42",
+            )
+        assert url == "https://canvas.example.com/line_items/abc"
+
+    def test_find_by_label_fallback(self):
+        from src.lti.ags import find_or_create_lineitem_url
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = [
+            {"id": "https://canvas.example.com/line_items/1", "label": "Other Quiz"},
+            {"id": "https://canvas.example.com/line_items/2", "label": "My Quiz"},
+        ]
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.get", return_value=mock_resp):
+            url = find_or_create_lineitem_url(
+                lineitems_url="https://canvas.example.com/line_items",
+                token="tok",
+                job_name="My Quiz",
+            )
+        assert url == "https://canvas.example.com/line_items/2"
+
+    def test_creates_lineitem_when_no_match(self):
+        from src.lti.ags import find_or_create_lineitem_url
+
+        mock_get_resp = MagicMock()
+        mock_get_resp.json.return_value = [
+            {"id": "https://canvas.example.com/line_items/1", "label": "Other"},
+        ]
+        mock_get_resp.raise_for_status = MagicMock()
+
+        mock_post_resp = MagicMock()
+        mock_post_resp.json.return_value = {
+            "id": "https://canvas.example.com/line_items/99",
+            "label": "Nonexistent",
+            "scoreMaximum": 10.0,
+        }
+        mock_post_resp.raise_for_status = MagicMock()
+        mock_post_resp.status_code = 200
+        mock_post_resp.text = '{"id":"https://canvas.example.com/line_items/99"}'
+
+        with (
+            patch("src.lti.ags.httpx.get", return_value=mock_get_resp),
+            patch("src.lti.ags.httpx.post", return_value=mock_post_resp) as mock_post,
+        ):
+            url = find_or_create_lineitem_url(
+                lineitems_url="https://canvas.example.com/line_items",
+                token="tok",
+                assignment_id="999",
+                job_name="Nonexistent",
+                max_score=10.0,
+            )
+
+        assert url == "https://canvas.example.com/line_items/99"
+        post_kwargs = mock_post.call_args
+        payload = post_kwargs[1]["json"]
+        assert payload["label"] == "Nonexistent"
+        assert payload["scoreMaximum"] == 10.0
+        assert payload["resourceId"] == "999"
+
+
 class TestPassbackJobGrades:
     def test_passback_no_launch(self, dynamodb_table):
         from src.lti.ags import passback_job_grades
@@ -119,23 +222,28 @@ class TestPassbackJobGrades:
         assert len(result["errors"]) == 1
         assert "not found" in result["errors"][0]
 
-    def test_passback_no_lineitem_url(self, dynamodb_table):
+    def test_passback_no_lineitem_url(self, dynamodb_table, lti_env_vars):
         from src.lti.ags import passback_job_grades
         from src.lti.launch_store import LaunchStore
 
-        # Create a launch without an AGS lineitem URL
+        # Create a launch without any AGS URLs
         store = LaunchStore(table=dynamodb_table)
         launch_id = store.create(
             {"sub": "user-1", "iss": "https://canvas.test.instructure.com"}
         )
 
-        result = passback_job_grades(
-            job_id="job-1",
-            launch_id=launch_id,
-            table=dynamodb_table,
-        )
+        mock_token_resp = MagicMock()
+        mock_token_resp.json.return_value = {"access_token": "tok"}
+        mock_token_resp.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.post", return_value=mock_token_resp):
+            result = passback_job_grades(
+                job_id="00000000-0000-0000-0000-000000000001",
+                launch_id=launch_id,
+                table=dynamodb_table,
+            )
         assert result["submitted"] == 0
-        assert "No AGS lineitem URL" in result["errors"][0]
+        assert "No AGS lineitem or lineitems URL" in result["errors"][0]
 
     def test_passback_submits_graded_submissions(self, dynamodb_table, lti_env_vars):
         from uuid import uuid4
@@ -264,4 +372,102 @@ class TestPassbackJobGrades:
             )
 
         assert result["submitted"] == 0
+        assert result["errors"] == []
+
+    def test_passback_uses_lineitems_url_when_no_lineitem(
+        self, dynamodb_table, lti_env_vars
+    ):
+        """When launch has lineitems (plural) but no lineitem (singular),
+        passback should look up the correct lineitem via the collection."""
+        from uuid import uuid4
+        from src.lti.ags import passback_job_grades
+        from src.lti.launch_store import LaunchStore
+        from src.models.grading_job import GradingJob
+        from src.models.submission import Submission
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        store = LaunchStore(table=dynamodb_table)
+        launch_id = store.create(
+            {
+                "sub": "user-1",
+                "iss": "https://canvas.test.instructure.com",
+                "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": {
+                    "lineitems": "https://canvas.test.instructure.com/api/lti/courses/1/line_items",
+                    "scope": [
+                        "https://purl.imsglobal.org/spec/lti-ags/scope/score",
+                        "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
+                    ],
+                },
+            }
+        )
+
+        job_id = uuid4()
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        job_repo.create(
+            GradingJob(
+                job_id=job_id,
+                course_id="C1",
+                quiz_id="Q1",
+                assignment_id="42",
+                job_name="Test Quiz",
+            )
+        )
+
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        sub_repo.batch_create(
+            [
+                Submission(
+                    job_id=job_id,
+                    question_id=1,
+                    question_name="Q1",
+                    question_type="short_answer_question",
+                    question_text="What?",
+                    points_possible=5.0,
+                    student_answer="Answer",
+                    canvas_points=0.0,
+                    correct_answers=["Correct"],
+                    canvas_user_id="student-1",
+                    ai_grade=4.0,
+                    ai_feedback="Good",
+                )
+            ]
+        )
+
+        mock_token_resp = MagicMock()
+        mock_token_resp.json.return_value = {"access_token": "ags-tok"}
+        mock_token_resp.raise_for_status = MagicMock()
+
+        mock_lineitems_resp = MagicMock()
+        mock_lineitems_resp.json.return_value = [
+            {
+                "id": "https://canvas.test.instructure.com/api/lti/courses/1/line_items/42",
+                "label": "Test Quiz",
+                "scoreMaximum": 5.0,
+            },
+        ]
+        mock_lineitems_resp.raise_for_status = MagicMock()
+
+        mock_score_resp = MagicMock()
+        mock_score_resp.json.return_value = {}
+        mock_score_resp.raise_for_status = MagicMock()
+
+        with (
+            patch(
+                "src.lti.ags.httpx.post",
+                side_effect=[mock_token_resp, mock_score_resp],
+            ) as mock_post,
+            patch("src.lti.ags.httpx.get", return_value=mock_lineitems_resp),
+        ):
+            result = passback_job_grades(
+                job_id=str(job_id),
+                launch_id=launch_id,
+                table=dynamodb_table,
+            )
+
+            score_call = mock_post.call_args_list[1]
+            assert score_call[0][0].endswith("/line_items/42/scores")
+            assert score_call[1]["json"]["userId"] == "student-1"
+
+        assert result["submitted"] == 1
         assert result["errors"] == []
