@@ -471,3 +471,276 @@ class TestPassbackJobGrades:
 
         assert result["submitted"] == 1
         assert result["errors"] == []
+
+
+class TestPassbackQuizGradesViaRest:
+    def _make_job_and_subs(self, dynamodb_table, quiz_submission_id=201, attempt=1):
+        from uuid import uuid4
+
+        from src.models.grading_job import GradingJob
+        from src.models.submission import Submission
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        job_id = uuid4()
+        GradingJobRepository(table=dynamodb_table).create(
+            GradingJob(job_id=job_id, course_id="C1", quiz_id="Q1", job_name="Test")
+        )
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        sub_repo.batch_create(
+            [
+                Submission(
+                    job_id=job_id,
+                    question_id=101,
+                    question_name="Q1",
+                    question_type="essay_question",
+                    question_text="Explain X",
+                    points_possible=1.0,
+                    student_answer="Answer A",
+                    canvas_points=0.0,
+                    correct_answers=[],
+                    canvas_user_id="student-1",
+                    quiz_submission_id=quiz_submission_id,
+                    attempt=attempt,
+                    ai_grade=0.5,
+                    ai_feedback="Partial credit",
+                ),
+                Submission(
+                    job_id=job_id,
+                    question_id=102,
+                    question_name="Q2",
+                    question_type="fill_in_multiple_blanks_question",
+                    question_text="Fill in Y",
+                    points_possible=1.0,
+                    student_answer="Answer B",
+                    canvas_points=0.0,
+                    correct_answers=["Y"],
+                    canvas_user_id="student-1",
+                    quiz_submission_id=quiz_submission_id,
+                    attempt=attempt,
+                    ai_grade=1.0,
+                    ai_feedback="Correct",
+                ),
+            ]
+        )
+        return job_id, sub_repo
+
+    def test_groups_questions_per_student_into_one_put_call(self, dynamodb_table):
+        from unittest.mock import MagicMock, patch
+
+        from src.lti.ags import passback_quiz_grades_via_rest
+
+        job_id, sub_repo = self._make_job_and_subs(dynamodb_table)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("src.lti.canvas_api.httpx.Client") as mock_client_cls:
+            # CanvasAPIClient stores httpx.Client() as self._client (not context manager)
+            mock_http = mock_client_cls.return_value
+            mock_http.put.return_value = mock_resp
+
+            result = passback_quiz_grades_via_rest(
+                job_id=str(job_id),
+                quiz_id="Q1",
+                course_id="C1",
+                canvas_token="tok",
+                canvas_url="https://canvas.example.com",
+                submission_repo=sub_repo,
+            )
+
+        assert result["submitted"] == 1
+        assert result["errors"] == []
+        assert mock_http.put.call_count == 1
+        call_payload = mock_http.put.call_args[1]["json"]
+        questions = call_payload["quiz_submissions"][0]["questions"]
+        assert "101" in questions
+        assert "102" in questions
+        assert questions["101"]["score"] == 0.5
+        assert questions["102"]["score"] == 1.0
+
+    def test_skips_submissions_with_no_ai_grade(self, dynamodb_table):
+        from uuid import uuid4
+
+        from src.lti.ags import passback_quiz_grades_via_rest
+        from src.models.grading_job import GradingJob
+        from src.models.submission import Submission
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        job_id = uuid4()
+        GradingJobRepository(table=dynamodb_table).create(
+            GradingJob(job_id=job_id, course_id="C1", quiz_id="Q1", job_name="T")
+        )
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        sub_repo.batch_create(
+            [
+                Submission(
+                    job_id=job_id,
+                    question_id=101,
+                    question_name="Q1",
+                    question_type="essay_question",
+                    question_text="?",
+                    points_possible=1.0,
+                    student_answer="ans",
+                    canvas_points=0.0,
+                    correct_answers=[],
+                    canvas_user_id="student-1",
+                    quiz_submission_id=201,
+                    attempt=1,
+                    ai_grade=None,
+                )
+            ]
+        )
+
+        result = passback_quiz_grades_via_rest(
+            job_id=str(job_id),
+            quiz_id="Q1",
+            course_id="C1",
+            canvas_token="tok",
+            canvas_url="https://canvas.example.com",
+            submission_repo=sub_repo,
+        )
+        assert result["submitted"] == 0
+        assert result["errors"] == []
+
+    def test_skips_submissions_with_no_quiz_submission_id(self, dynamodb_table):
+        from uuid import uuid4
+
+        from src.lti.ags import passback_quiz_grades_via_rest
+        from src.models.grading_job import GradingJob
+        from src.models.submission import Submission
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        job_id = uuid4()
+        GradingJobRepository(table=dynamodb_table).create(
+            GradingJob(job_id=job_id, course_id="C1", quiz_id="Q1", job_name="T")
+        )
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        sub_repo.batch_create(
+            [
+                Submission(
+                    job_id=job_id,
+                    question_id=101,
+                    question_name="Q1",
+                    question_type="essay_question",
+                    question_text="?",
+                    points_possible=1.0,
+                    student_answer="ans",
+                    canvas_points=0.0,
+                    correct_answers=[],
+                    canvas_user_id="student-1",
+                    quiz_submission_id=0,  # pre-migration row
+                    attempt=1,
+                    ai_grade=0.8,
+                )
+            ]
+        )
+
+        result = passback_quiz_grades_via_rest(
+            job_id=str(job_id),
+            quiz_id="Q1",
+            course_id="C1",
+            canvas_token="tok",
+            canvas_url="https://canvas.example.com",
+            submission_repo=sub_repo,
+        )
+        assert result["submitted"] == 0
+        assert result["errors"] == []
+
+    def test_returns_correct_submitted_count_for_multiple_students(
+        self, dynamodb_table
+    ):
+        from unittest.mock import MagicMock, patch
+        from uuid import uuid4
+
+        from src.lti.ags import passback_quiz_grades_via_rest
+        from src.models.grading_job import GradingJob
+        from src.models.submission import Submission
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        job_id = uuid4()
+        GradingJobRepository(table=dynamodb_table).create(
+            GradingJob(job_id=job_id, course_id="C1", quiz_id="Q1", job_name="T")
+        )
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        sub_repo.batch_create(
+            [
+                Submission(
+                    job_id=job_id,
+                    question_id=101,
+                    question_name="Q1",
+                    question_type="essay_question",
+                    question_text="?",
+                    points_possible=1.0,
+                    student_answer="ans",
+                    canvas_points=0.0,
+                    correct_answers=[],
+                    canvas_user_id="student-1",
+                    quiz_submission_id=201,
+                    attempt=1,
+                    ai_grade=0.5,
+                ),
+                Submission(
+                    job_id=job_id,
+                    question_id=101,
+                    question_name="Q1",
+                    question_type="essay_question",
+                    question_text="?",
+                    points_possible=1.0,
+                    student_answer="ans",
+                    canvas_points=0.0,
+                    correct_answers=[],
+                    canvas_user_id="student-2",
+                    quiz_submission_id=202,
+                    attempt=1,
+                    ai_grade=1.0,
+                ),
+            ]
+        )
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("src.lti.canvas_api.httpx.Client") as mock_client_cls:
+            mock_http = mock_client_cls.return_value
+            mock_http.put.return_value = mock_resp
+
+            result = passback_quiz_grades_via_rest(
+                job_id=str(job_id),
+                quiz_id="Q1",
+                course_id="C1",
+                canvas_token="tok",
+                canvas_url="https://canvas.example.com",
+                submission_repo=sub_repo,
+            )
+
+        assert result["submitted"] == 2
+        assert mock_http.put.call_count == 2
+
+    def test_surfaces_canvas_errors_without_raising(self, dynamodb_table):
+        from unittest.mock import patch
+
+        from src.lti.ags import passback_quiz_grades_via_rest
+
+        job_id, sub_repo = self._make_job_and_subs(dynamodb_table)
+
+        with patch("src.lti.canvas_api.httpx.Client") as mock_client_cls:
+            mock_http = mock_client_cls.return_value
+            mock_http.put.side_effect = Exception("Canvas 403 Forbidden")
+
+            result = passback_quiz_grades_via_rest(
+                job_id=str(job_id),
+                quiz_id="Q1",
+                course_id="C1",
+                canvas_token="tok",
+                canvas_url="https://canvas.example.com",
+                submission_repo=sub_repo,
+            )
+
+        assert result["submitted"] == 0
+        assert len(result["errors"]) == 1
+        assert "Canvas 403 Forbidden" in result["errors"][0]

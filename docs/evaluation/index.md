@@ -24,7 +24,7 @@ Before the grading tool can be trusted in production, we need to prove that AI g
 
 ## Current Limitations
 
-- The grading pipeline currently supports only `short_answer_question` and `fill_in_multiple_blanks_question` types from Canvas
+- The grading pipeline currently supports `short_answer_question`, `fill_in_multiple_blanks_question`, and `essay_question` types from Canvas
 - No evaluation data has been collected yet — this requires running the tool on real course quizzes alongside TA grading
 - The Bedrock grading prompt is functional but has not been optimized through evaluation cycles
 

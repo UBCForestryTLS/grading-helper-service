@@ -80,6 +80,35 @@ class CanvasAPIClient:
         )
         return self._get_all_pages(url)
 
+    def update_quiz_submission_scores(
+        self,
+        course_id: str,
+        quiz_id: str,
+        quiz_submission_id: int,
+        attempt: int,
+        questions: dict[int, dict],
+    ) -> dict:
+        """Update per-question scores on an existing quiz submission.
+
+        Canvas recomputes the total automatically, preserving MC question grades.
+        questions: {question_id: {"score": float, "comment": str}}
+        """
+        url = (
+            f"{self.canvas_url}/api/v1/courses/{course_id}"
+            f"/quizzes/{quiz_id}/submissions/{quiz_submission_id}"
+        )
+        payload = {
+            "quiz_submissions": [
+                {
+                    "attempt": attempt,
+                    "questions": {str(qid): v for qid, v in questions.items()},
+                }
+            ]
+        }
+        resp = self._client.put(url, json=payload)
+        resp.raise_for_status()
+        return resp.json()
+
     def close(self):
         self._client.close()
 

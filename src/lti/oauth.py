@@ -12,6 +12,7 @@ CANVAS_API_SCOPES = [
     "url:GET|/api/v1/courses/:course_id/quizzes/:quiz_id/questions",
     "url:GET|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions",
     "url:GET|/api/v1/courses/:course_id/assignments/:assignment_id/submissions",
+    "url:PUT|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions/:id",
 ]
 
 

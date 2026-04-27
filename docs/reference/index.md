@@ -108,6 +108,7 @@ These URIs are used as keys in the decoded LTI JWT claims dict:
 | `url:GET\|/api/v1/courses/:course_id/assignments/:assignment_id/submissions` | Get assignment submissions |
 | `url:GET\|/api/v1/courses/:course_id/discussion_topics` | List discussions |
 | `url:GET\|/api/v1/courses/:course_id/discussion_topics/:topic_id/entries` | Get discussion entries |
+| `url:PUT\|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions/:id` | Update per-question scores for REST-based grade passback |
 
 ## Bedrock Configuration
 

@@ -139,9 +139,9 @@ Stores the LTI launch context (extracted from the JWT claims) for use by subsequ
 |----------|-------|
 | **DynamoDB key** | `pk=LAUNCH#{launch_id}`, `sk=LAUNCH` |
 | **TTL** | 24 hours |
-| **Contents** | `canvas_user_id`, `course_id`, `iss`, `ags_lineitem_url`, `ags_scope`, `nrps_context_memberships_url` |
+| **Contents** | `canvas_user_id`, `course_id`, `iss`, `ags_lineitem_url`, `ags_lineitems_url`, `ags_scope`, `nrps_context_memberships_url` |
 
-The launch context is needed later for AGS grade passback (which needs the `ags_lineitem_url`) and for Canvas API calls (which need the `course_id` and `canvas_user_id`).
+The launch context is needed later for AGS grade passback (which needs the `ags_lineitem_url` or `ags_lineitems_url`) and for Canvas API calls (which need the `course_id` and `canvas_user_id`).
 
 ## Canvas OAuth2 Flow
 
@@ -182,10 +182,51 @@ Assignment and Grade Services (AGS) lets the tool push AI grades back into Canva
 ### How It Works
 
 1. **Get AGS token** — `get_ags_token()` signs a JWT assertion with the tool's RSA private key and exchanges it at Canvas's token endpoint for a scoped access token
-2. **Submit scores** — `submit_score()` POSTs each grade to the lineitem's `/scores` endpoint using the AGS content type (`application/vnd.ims.lis.v1.score+json`)
-3. **Batch passback** — `passback_job_grades()` looks up the launch context, gets an AGS token, and submits scores for all graded submissions in a job
+2. **Find or create lineitem** — `find_or_create_lineitem_url()` resolves the gradebook column to post scores to (see below)
+3. **Submit scores** — `submit_score()` POSTs each grade to the lineitem's `/scores` endpoint using the AGS content type (`application/vnd.ims.lis.v1.score+json`)
+4. **Batch passback** — `passback_job_grades()` looks up the launch context, gets an AGS token, resolves the lineitem, and submits scores for all graded submissions in a job
 
 The AGS token endpoint is the LTI platform's OAuth2 token URL (`LTI_AUTH_TOKEN_URL`), not the Canvas REST API. The `client_assertion` JWT is signed with the same RSA key used for session tokens.
+
+### Lineitem Resolution
+
+AGS line items represent gradebook columns in Canvas. How the tool resolves a lineitem depends on how it was launched:
+
+- **Assignment launches** — Canvas provides a singular `ags_lineitem_url` pointing directly to the gradebook column. The tool uses it as-is.
+- **Course navigation launches** — Canvas only provides `ags_lineitems_url` (the collection URL), with no specific lineitem. The tool must find or create one.
+
+`find_or_create_lineitem_url()` handles the course navigation case:
+
+1. Lists existing lineitems via `GET {lineitems_url}` and tries to match by `assignment_id` or `job_name`
+2. If no match is found, creates a new lineitem via `POST {lineitems_url}` with `scoreMaximum`, `label`, and `resourceId`
+
+!!! note "Canvas AGS Quirk"
+    Canvas does not expose natively-created assignments via the AGS lineitems listing — it returns `[]`. This means the tool always creates a new gradebook column for course navigation launches. This is expected behavior, confirmed on ubcstaging.
+
+## Quiz REST Grade Passback
+
+For quiz-based grading jobs, the tool uses a second passback strategy that preserves MC/true-false grades and avoids creating a new gradebook column.
+
+### How It Works
+
+Instead of posting an aggregated total via AGS, `passback_quiz_grades_via_rest()` calls:
+
+```
+PUT /api/v1/courses/:course_id/quizzes/:quiz_id/submissions/:quiz_submission_id
+```
+
+with a payload that includes per-question scores. Canvas recomputes the quiz total automatically, keeping any auto-graded question scores intact.
+
+The `quiz_submission_id` and `attempt` are stored on each `Submission` row during ingestion (captured from the Canvas quiz submissions API response). Submissions with `quiz_submission_id=0` are skipped (pre-migration rows).
+
+This path requires a valid Canvas OAuth token (`get_canvas_token()`). If no token exists, the endpoint returns 401. The OAuth scope needed is `url:PUT|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions/:id`.
+
+### Passback Routing (`POST /lti/passback/{job_id}`)
+
+The passback route in `src/lti/routes.py` selects the strategy automatically:
+
+- If `job.quiz_id` is set → quiz REST passback (`passback_quiz_grades_via_rest`)
+- Otherwise → AGS passback (`passback_job_grades`)
 
 ## Canvas API Client
 
@@ -193,6 +234,7 @@ The AGS token endpoint is the LTI platform's OAuth2 token URL (`LTI_AUTH_TOKEN_U
 
 - **Pagination** — Canvas returns paginated results with `Link` headers. `_get_all_pages()` follows `rel="next"` links until exhausted.
 - **Quiz data** — `list_quizzes()`, `get_quiz_questions()`, `get_quiz_submissions()`, `get_submission_answers()`
+- **Score updates** — `update_quiz_submission_scores()` — PUT per-question scores for the REST passback path
 - **Context manager** — used as `with CanvasAPIClient(...) as client:` for proper connection cleanup
 
 ## Instructor SPA
@@ -210,4 +252,4 @@ After a successful LTI launch, `render_instructor_ui()` returns a full HTML/JS s
 
 - **OAuth2 iframe UX** — The OAuth authorization redirect currently happens within the Canvas iframe. Some browsers may block this. A popup-based or `postMessage` approach may be needed.
 - **Token refresh** — Canvas OAuth tokens expire and the service does not yet implement automatic refresh token handling.
-- **API Developer Key secret** — The `API_CLIENT_SECRET` is still pending from UBC's LT Hub. The OAuth flow is coded and tested but cannot be used in production until this is received.
+- **OAuth2 clarification pending** — Waiting on UBC LT Hub for guidance on how OAuth2 redirect behaves within Canvas iframe on ubcstaging.

@@ -14,6 +14,7 @@ erDiagram
         string job_id
         string course_id
         string quiz_id
+        string assignment_id
         string job_name
         string status
         int total_questions
@@ -36,6 +37,8 @@ erDiagram
         string student_answer
         string canvas_points
         string canvas_user_id
+        int quiz_submission_id
+        int attempt
         string ai_grade
         string ai_feedback
         string ai_graded_at
@@ -57,6 +60,7 @@ erDiagram
         string course_id
         string iss
         string ags_lineitem_url
+        string ags_lineitems_url
         string nrps_context_memberships_url
         int ttl
     }
@@ -134,6 +138,7 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 | `job_id` | `UUID` | Auto-generated unique identifier |
 | `course_id` | `str` | Canvas course ID |
 | `quiz_id` | `str` | Canvas quiz ID |
+| `assignment_id` | `str` | Canvas assignment ID (used for AGS lineitem matching) |
 | `job_name` | `str` | Human-readable name |
 | `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, or `FAILED` |
 | `total_questions` | `int` | Number of questions in the quiz |
@@ -179,6 +184,8 @@ One student answer to one question. Defined in `src/models/submission.py`.
 | `canvas_points` | `float` | Points Canvas originally assigned |
 | `correct_answers` | `list[str]` | Expected correct answers |
 | `canvas_user_id` | `str` | Canvas user ID (for grade passback) |
+| `quiz_submission_id` | `int` | Canvas quiz submission ID (used for REST-based grade passback; 0 if not set) |
+| `attempt` | `int` | Quiz submission attempt number (default 1) |
 | `ai_grade` | `float | None` | AI-assigned grade (clamped to 0..points_possible) |
 | `ai_feedback` | `str | None` | AI-generated feedback text |
 | `ai_graded_at` | `datetime | None` | When the AI grading was performed |

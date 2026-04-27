@@ -205,9 +205,11 @@ Create a grading job by fetching quiz data directly from Canvas.
 
 ### `POST /lti/passback/{job_id}`
 
-Push AI grades for a completed job back to Canvas via AGS.
+Push AI grades for a completed job back to Canvas.
 
 - **Auth:** Required (session token)
+- **Quiz jobs** — uses Canvas REST API (`PUT /quizzes/:id/submissions/:id`) to update per-question scores on the existing quiz submission. This preserves MC/true-false grades and avoids creating a new gradebook column. Requires a valid Canvas OAuth token.
+- **Non-quiz jobs** — falls back to AGS grade passback.
 - **Request body:**
 ```json
 {
@@ -218,9 +220,10 @@ Push AI grades for a completed job back to Canvas via AGS.
 ```json
 {
   "submitted": 118,
-  "errors": ["Submission xyz: 403 Forbidden"]
+  "errors": ["User 42 (qs_id=201): 403 Forbidden"]
 }
 ```
+- **Errors:** 401 if no Canvas OAuth token (quiz path); AGS errors reported inside the `errors` array (non-quiz path)
 
 ### `GET /lti/oauth/authorize`
 

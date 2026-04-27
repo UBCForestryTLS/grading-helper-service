@@ -379,13 +379,42 @@ def lti_passback(
     body: PassbackRequest,
     session: SessionUser = Depends(require_session),
 ):
-    """Push AI grades for a completed job back to Canvas via AGS."""
-    from src.lti.ags import passback_job_grades
+    """Push AI grades for a completed job back to Canvas.
 
-    result = passback_job_grades(
-        job_id=job_id,
-        launch_id=body.launch_id,
-    )
+    For quiz-based jobs: uses Canvas REST API to update per-question scores on the
+    existing quiz submission (preserves MC grades, no new gradebook column).
+    Fallback: AGS passback for non-quiz jobs.
+    """
+    from uuid import UUID
+
+    from src.lti.ags import passback_job_grades, passback_quiz_grades_via_rest
+    from src.lti.oauth import get_canvas_token
+    from src.repositories.grading_job import GradingJobRepository
+
+    job = GradingJobRepository().get(UUID(job_id))
+    if job and job.quiz_id:
+        token = get_canvas_token(
+            course_id=session.course_id,
+            canvas_user_id=session.canvas_user_id,
+        )
+        if not token:
+            raise HTTPException(
+                status_code=401,
+                detail="Canvas token not found. Re-authorize first.",
+            )
+        settings = get_settings()
+        result = passback_quiz_grades_via_rest(
+            job_id=job_id,
+            quiz_id=job.quiz_id,
+            course_id=session.course_id,
+            canvas_token=token,
+            canvas_url=settings.api_canvas_url,
+        )
+    else:
+        result = passback_job_grades(
+            job_id=job_id,
+            launch_id=body.launch_id,
+        )
     return result
 
 

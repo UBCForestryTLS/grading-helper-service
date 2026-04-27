@@ -128,6 +128,8 @@ class IngestionService:
             ]
 
             for qs in quiz_submissions:
+                if qs.get("workflow_state") not in ("complete", "pending_review"):
+                    continue
                 canvas_user_id = str(qs.get("user_id", ""))
 
                 student_answer = ""
@@ -148,6 +150,8 @@ class IngestionService:
                         canvas_points=0.0,
                         correct_answers=correct_answers,
                         canvas_user_id=canvas_user_id,
+                        quiz_submission_id=int(qs.get("id", 0)),
+                        attempt=int(qs.get("attempt", 1)),
                     )
                 )
 

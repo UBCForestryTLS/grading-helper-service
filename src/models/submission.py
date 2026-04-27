@@ -20,6 +20,8 @@ class Submission(BaseModel):
     canvas_points: float
     correct_answers: list[str]
     canvas_user_id: str = ""
+    quiz_submission_id: int = 0
+    attempt: int = 1
     ai_grade: float | None = None
     ai_feedback: str | None = None
     ai_graded_at: datetime | None = None

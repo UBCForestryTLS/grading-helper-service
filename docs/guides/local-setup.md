@@ -41,7 +41,7 @@ pre-commit run --all-files
 uv run pytest tests/ -v
 ```
 
-All 136 tests should pass. Tests use moto to mock AWS services — no real AWS credentials needed.
+All 148 tests should pass. Tests use moto to mock AWS services — no real AWS credentials needed.
 
 ## Step 4: Configure AWS CLI (for deployment)
 

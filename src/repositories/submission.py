@@ -36,6 +36,8 @@ class SubmissionRepository:
             "canvas_points": str(sub.canvas_points),
             "correct_answers": sub.correct_answers,
             "canvas_user_id": sub.canvas_user_id,
+            "quiz_submission_id": sub.quiz_submission_id,
+            "attempt": sub.attempt,
         }
         if sub.ai_grade is not None:
             item["ai_grade"] = str(sub.ai_grade)
@@ -58,6 +60,8 @@ class SubmissionRepository:
             canvas_points=float(item["canvas_points"]),
             correct_answers=item["correct_answers"],
             canvas_user_id=item.get("canvas_user_id", ""),
+            quiz_submission_id=int(item.get("quiz_submission_id", 0)),
+            attempt=int(item.get("attempt", 1)),
             ai_grade=float(item["ai_grade"]) if item.get("ai_grade") else None,
             ai_feedback=item.get("ai_feedback"),
             ai_graded_at=(

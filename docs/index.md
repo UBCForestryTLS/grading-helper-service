@@ -2,8 +2,6 @@
 
 Official documentation for the UBC Faculty of Forestry [AI Grading Helper Service](https://github.com/forestrytls/grading-helper-service/)
 
-!!! success "Current Status"
-    The LTI 1.3 launch works on Canvas, Bedrock AI grading pipeline is functional, and the full `/jobs` CRUD API is live. See [Architecture](architecture/index.md) for a system overview.
 
 ## Navigation
 

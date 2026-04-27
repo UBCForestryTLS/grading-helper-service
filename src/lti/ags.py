@@ -156,6 +156,67 @@ def find_or_create_lineitem_url(
     return created.get("id")
 
 
+def passback_quiz_grades_via_rest(
+    job_id: str,
+    quiz_id: str,
+    course_id: str,
+    canvas_token: str,
+    canvas_url: str,
+    submission_repo=None,
+    table=None,
+) -> dict:
+    """Push AI grades back to Canvas by updating per-question scores on the existing quiz.
+
+    Uses PUT /api/v1/courses/:course_id/quizzes/:quiz_id/submissions/:id so Canvas
+    recomputes the total naturally — MC scores stay intact, no new gradebook column.
+    Returns {"submitted": N, "errors": [...]}.
+    """
+    from uuid import UUID
+
+    from src.lti.canvas_api import CanvasAPIClient
+    from src.repositories.submission import SubmissionRepository
+
+    if submission_repo is None:
+        submission_repo = SubmissionRepository(table=table)
+
+    submissions = submission_repo.list_by_job(UUID(job_id))
+
+    # Group AI-graded submissions by student (one PUT call per student)
+    by_student: dict[tuple, dict] = {}
+    for sub in submissions:
+        if sub.ai_grade is None:
+            continue
+        if sub.quiz_submission_id == 0:
+            # Pre-migration row — skip, no quiz_submission_id available
+            continue
+        key = (sub.canvas_user_id, sub.quiz_submission_id, sub.attempt)
+        if key not in by_student:
+            by_student[key] = {}
+        by_student[key][sub.question_id] = {
+            "score": sub.ai_grade,
+            "comment": sub.ai_feedback or "",
+        }
+
+    submitted = 0
+    errors: list[str] = []
+
+    with CanvasAPIClient(canvas_url, canvas_token) as client:
+        for (user_id, qs_id, attempt), questions in by_student.items():
+            try:
+                client.update_quiz_submission_scores(
+                    course_id=course_id,
+                    quiz_id=quiz_id,
+                    quiz_submission_id=qs_id,
+                    attempt=attempt,
+                    questions=questions,
+                )
+                submitted += 1
+            except Exception as e:
+                errors.append(f"User {user_id} (qs_id={qs_id}): {e}")
+
+    return {"submitted": submitted, "errors": errors}
+
+
 def passback_job_grades(
     job_id: str,
     launch_id: str,

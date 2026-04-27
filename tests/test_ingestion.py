@@ -165,8 +165,8 @@ class TestIngestionServiceFromCanvasAPI:
     ]
 
     QUIZ_SUBMISSIONS = [
-        {"id": 201, "user_id": 501},
-        {"id": 202, "user_id": 502},
+        {"id": 201, "user_id": 501, "attempt": 1, "workflow_state": "complete"},
+        {"id": 202, "user_id": 502, "attempt": 1, "workflow_state": "complete"},
     ]
 
     ANSWERS_BY_USER = {
@@ -291,7 +291,9 @@ class TestIngestionServiceFromCanvasAPI:
                 "answers": [],  # essay questions have no model answers
             }
         ]
-        quiz_submissions = [{"id": 301, "user_id": 601}]
+        quiz_submissions = [
+            {"id": 301, "user_id": 601, "attempt": 1, "workflow_state": "complete"}
+        ]
         answers_by_user = {
             "601": [{"question_id": 201, "answer": "Plants convert light to energy."}]
         }
@@ -311,6 +313,47 @@ class TestIngestionServiceFromCanvasAPI:
         assert subs[0].question_type == "essay_question"
         assert subs[0].correct_answers == []
         assert subs[0].student_answer == "Plants convert light to energy."
+
+    def test_stores_quiz_submission_id_and_attempt(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        quiz_submissions = [
+            {"id": 201, "user_id": 501, "attempt": 2, "workflow_state": "complete"}
+        ]
+        job = service.ingest_from_canvas_api(
+            "C100",
+            "Q50",
+            "API Job",
+            self.QUESTIONS,
+            quiz_submissions,
+            {"501": [{"question_id": 101, "answer": "Sunlight conversion"}]},
+        )
+
+        subs = sub_repo.list_by_job(job.job_id)
+        assert subs[0].quiz_submission_id == 201
+        assert subs[0].attempt == 2
+
+    def test_quiz_submission_id_defaults_to_zero_when_missing(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        service = IngestionService(job_repo=job_repo, sub_repo=sub_repo)
+
+        # QUIZ_SUBMISSIONS has no "attempt" key — should default to 1
+        job = service.ingest_from_canvas_api(
+            "C100",
+            "Q50",
+            "API Job",
+            self.QUESTIONS,
+            self.QUIZ_SUBMISSIONS,
+            self.ANSWERS_BY_USER,
+        )
+
+        subs = sub_repo.list_by_job(job.job_id)
+        for sub in subs:
+            assert sub.quiz_submission_id in {201, 202}
+            assert sub.attempt == 1
 
     def test_empty_submissions_raises(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)

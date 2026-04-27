@@ -223,3 +223,76 @@ class TestLTILaunch:
         assert "Instructor" in response.text
         # Session token is embedded in the UI
         assert "session-token" in response.text
+
+
+class TestPassback:
+    def test_passback_uses_rest_path_when_job_has_quiz_id(
+        self, client, mock_table, session_token
+    ):
+        from uuid import uuid4
+        from unittest.mock import patch
+
+        from src.models.grading_job import GradingJob
+        from src.repositories.grading_job import GradingJobRepository
+
+        job_id = uuid4()
+        GradingJobRepository(table=mock_table).create(
+            GradingJob(
+                job_id=job_id,
+                course_id="C100",
+                quiz_id="Q50",
+                job_name="Test Quiz",
+            )
+        )
+
+        with (
+            patch("src.lti.oauth.get_canvas_token", return_value="canvas-tok"),
+            patch(
+                "src.lti.ags.passback_quiz_grades_via_rest",
+                return_value={"submitted": 1, "errors": []},
+            ) as mock_rest,
+        ):
+            response = client.post(
+                f"/lti/passback/{job_id}",
+                json={"launch_id": "some-launch-id"},
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["submitted"] == 1
+        assert data["errors"] == []
+        mock_rest.assert_called_once()
+        call_kwargs = mock_rest.call_args[1]
+        assert call_kwargs["quiz_id"] == "Q50"
+        assert call_kwargs["course_id"] == "C100"
+        assert call_kwargs["canvas_token"] == "canvas-tok"
+
+    def test_passback_returns_401_when_no_canvas_token(
+        self, client, mock_table, session_token
+    ):
+        from uuid import uuid4
+        from unittest.mock import patch
+
+        from src.models.grading_job import GradingJob
+        from src.repositories.grading_job import GradingJobRepository
+
+        job_id = uuid4()
+        GradingJobRepository(table=mock_table).create(
+            GradingJob(
+                job_id=job_id,
+                course_id="C100",
+                quiz_id="Q50",
+                job_name="Test Quiz",
+            )
+        )
+
+        with patch("src.lti.oauth.get_canvas_token", return_value=None):
+            response = client.post(
+                f"/lti/passback/{job_id}",
+                json={"launch_id": "some-launch-id"},
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+
+        assert response.status_code == 401
+        assert "Re-authorize" in response.json()["detail"]
