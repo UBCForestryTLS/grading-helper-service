@@ -101,6 +101,7 @@ class CanvasAPIClient:
             "quiz_submissions": [
                 {
                     "attempt": attempt,
+                    "fudge_points": 0,
                     "questions": {str(qid): v for qid, v in questions.items()},
                 }
             ]

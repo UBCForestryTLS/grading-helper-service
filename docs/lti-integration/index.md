@@ -221,6 +221,11 @@ The `quiz_submission_id` and `attempt` are stored on each `Submission` row durin
 
 This path requires a valid Canvas OAuth token (`get_canvas_token()`). If no token exists, the endpoint returns 401. The OAuth scope needed is `url:PUT|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions/:id`.
 
+!!! warning "Canvas `fudge_points` quirk"
+    If AGS passback was previously used on the same quiz submissions (e.g., during development or before the REST path existed), Canvas stores a negative `fudge_points` adjustment to reconcile the AGS-set total with the per-question scores. Subsequent REST PUTs then compute `question_scores + fudge_points ≈ 0`, silently zeroing out grades even though the PUT returns 200.
+
+    The fix: always include `"fudge_points": 0` in the PUT payload to clear any prior adjustment. This is already done in `update_quiz_submission_scores()`.
+
 ### Passback Routing (`POST /lti/passback/{job_id}`)
 
 The passback route in `src/lti/routes.py` selects the strategy automatically:

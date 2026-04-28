@@ -103,6 +103,7 @@ class GradingService:
             {
                 "anthropic_version": ANTHROPIC_VERSION,
                 "max_tokens": 512,
+                "temperature": 0,
                 "messages": [{"role": "user", "content": prompt}],
             }
         )
