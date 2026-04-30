@@ -1,0 +1,2061 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Official documentation for UBC Faculty of Forestry AI Grading Helper Service">
+      
+      
+      
+        <link rel="canonical" href="https://forestrytls.github.io/grading-helper-service/lti-integration/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../data-models/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>LTI Integration - AI Grading Helper Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#lti-integration" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AI Grading Helper Docs" class="md-header__button md-logo" aria-label="AI Grading Helper Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 21v-3H3l5-5H5l5-5H7l5-5 5 5h-3l5 5h-3l5 5h-7v3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AI Grading Helper Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              LTI Integration
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/forestrytls/grading-helper-service/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    forestrytls/grading-helper-service
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/start_here/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  LTI Integration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../data-models/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Data Models
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../api/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../decisions/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Design Decisions
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../development/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Development
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deployment
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../evaluation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Evaluation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Reference
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AI Grading Helper Docs" class="md-nav__button md-logo" aria-label="AI Grading Helper Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 21v-3H3l5-5H5l5-5H7l5-5 5 5h-3l5 5h-3l5 5h-7v3z"/></svg>
+
+    </a>
+    AI Grading Helper Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/forestrytls/grading-helper-service/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    forestrytls/grading-helper-service
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/start_here/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start Here
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LTI Integration
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LTI Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-lti-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is LTI 1.3?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oidc-launch-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OIDC Launch Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OIDC Launch Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-login-initiation-getpost-ltilogin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Login Initiation (GET/POST /lti/login)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-canvas-authenticates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Canvas Authenticates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-launch-callback-post-ltilaunch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Launch Callback (POST /lti/launch)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#two-canvas-developer-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two Canvas Developer Keys
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Two Canvas Developer Keys">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lti-developer-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LTI Developer Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-developer-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Developer Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jwks-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JWKS Endpoint
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jwt-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JWT Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JWT Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deployment-id-prefix-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment ID Prefix Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="State Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lti-state-store-srcltistatepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LTI State Store (src/lti/state.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#launch-store-srcltilaunch_storepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Launch Store (src/lti/launch_store.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canvas-oauth2-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canvas OAuth2 Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Canvas OAuth2 Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#oauth-helpers-srcltioauthpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OAuth Helpers (src/lti/oauth.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ags-grade-passback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AGS Grade Passback
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AGS Grade Passback">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lineitem-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lineitem Resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quiz-rest-grade-passback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quiz REST Grade Passback
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quiz REST Grade Passback">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#passback-routing-post-ltipassbackjob_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Passback Routing (POST /lti/passback/{job_id})
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canvas-api-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canvas API Client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#instructor-spa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Instructor SPA
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/local-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/running-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-lti-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is LTI 1.3?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oidc-launch-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OIDC Launch Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OIDC Launch Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-login-initiation-getpost-ltilogin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Login Initiation (GET/POST /lti/login)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-canvas-authenticates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Canvas Authenticates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-launch-callback-post-ltilaunch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Launch Callback (POST /lti/launch)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#two-canvas-developer-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two Canvas Developer Keys
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Two Canvas Developer Keys">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lti-developer-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LTI Developer Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-developer-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Developer Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jwks-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JWKS Endpoint
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jwt-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JWT Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JWT Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deployment-id-prefix-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment ID Prefix Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="State Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lti-state-store-srcltistatepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LTI State Store (src/lti/state.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#launch-store-srcltilaunch_storepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Launch Store (src/lti/launch_store.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canvas-oauth2-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canvas OAuth2 Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Canvas OAuth2 Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#oauth-helpers-srcltioauthpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OAuth Helpers (src/lti/oauth.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ags-grade-passback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AGS Grade Passback
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AGS Grade Passback">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lineitem-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lineitem Resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quiz-rest-grade-passback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quiz REST Grade Passback
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quiz REST Grade Passback">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#passback-routing-post-ltipassbackjob_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Passback Routing (POST /lti/passback/{job_id})
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canvas-api-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canvas API Client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#instructor-spa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Instructor SPA
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="lti-integration">LTI Integration</h1>
+<p>This service integrates with Canvas LMS using <a href="https://www.imsglobal.org/spec/lti/v1p3/">LTI 1.3</a>, the current standard for connecting external tools to learning management systems. This page covers the full integration: the OIDC launch flow, key management, state handling, Canvas OAuth2, and grade passback.</p>
+<h2 id="what-is-lti-13">What is LTI 1.3?</h2>
+<p>LTI (Learning Tools Interoperability) 1.3 is an IMS Global standard that lets external tools embed inside an LMS securely. The tool launches inside a Canvas iframe, receives a signed JWT with the user's identity and course context, and can push grades back to Canvas's gradebook.</p>
+<p>Key benefits for this project:</p>
+<ul>
+<li><strong>Seamless UX</strong> — instructors access the grading tool directly from their Canvas course navigation</li>
+<li><strong>No separate login</strong> — identity comes from Canvas via OIDC</li>
+<li><strong>Grade passback</strong> — AI grades flow back into Canvas's gradebook via AGS (Assignment and Grade Services)</li>
+<li><strong>Course context</strong> — the launch JWT tells us which course, user, and assignment the tool was opened from</li>
+</ul>
+<h2 id="oidc-launch-flow">OIDC Launch Flow</h2>
+<p>LTI 1.3 uses a three-step OIDC flow. Canvas initiates the login, we redirect back with state and nonce, and Canvas posts a signed JWT with the user's identity.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant Instructor
+    participant Canvas
+    participant Tool as Grading Helper
+    participant DynamoDB
+
+    Instructor-&gt;&gt;Canvas: Click "Grading Helper" in course nav
+    Canvas-&gt;&gt;Tool: GET/POST /lti/login&lt;br/&gt;(iss, login_hint, client_id, target_link_uri)
+    Tool-&gt;&gt;Tool: Validate iss matches LTI_ISS
+    Tool-&gt;&gt;DynamoDB: Store state + nonce&lt;br/&gt;(pk=LTI_STATE#{state}, TTL=10min)
+    Tool--&gt;&gt;Canvas: 302 Redirect to Canvas auth URL&lt;br/&gt;(state, nonce, client_id, scope=openid)
+
+    Canvas-&gt;&gt;Canvas: Authenticate user, build id_token JWT
+    Canvas-&gt;&gt;Tool: POST /lti/launch&lt;br/&gt;(id_token, state) via form_post
+    Tool-&gt;&gt;DynamoDB: Validate state (atomic delete)
+    Tool-&gt;&gt;Canvas: Fetch JWKS from platform
+    Tool-&gt;&gt;Tool: Verify JWT signature, aud, iss, nonce, deployment_id
+    Tool-&gt;&gt;DynamoDB: Store launch context&lt;br/&gt;(pk=LAUNCH#{id}, TTL=24h)
+    Tool-&gt;&gt;Tool: Create RS256 session token (1h TTL)
+    Tool--&gt;&gt;Instructor: Render instructor SPA (HTML)</code></pre>
+<h3 id="step-1-login-initiation-getpost-ltilogin">Step 1: Login Initiation (<code>GET/POST /lti/login</code>)</h3>
+<p>Canvas sends <code>iss</code>, <code>login_hint</code>, <code>target_link_uri</code>, <code>client_id</code>, and optionally <code>lti_message_hint</code>. The tool validates that <code>iss</code> matches the configured <code>LTI_ISS</code>, generates a random <code>state</code> and <code>nonce</code>, stores them in DynamoDB with a 10-minute TTL, and redirects the browser to Canvas's OIDC authorization endpoint.</p>
+<h3 id="step-2-canvas-authenticates">Step 2: Canvas Authenticates</h3>
+<p>Canvas validates the instructor's session, builds a signed <code>id_token</code> JWT containing the user's identity, course context, roles, and LTI service URLs (AGS, NRPS). Canvas then form-posts this token back to the tool's launch URL along with the <code>state</code>.</p>
+<h3 id="step-3-launch-callback-post-ltilaunch">Step 3: Launch Callback (<code>POST /lti/launch</code>)</h3>
+<p>The tool:</p>
+<ol>
+<li><strong>Validates state</strong> — atomically deletes the state from DynamoDB (one-time use prevents replay attacks)</li>
+<li><strong>Validates the JWT</strong> — verifies the signature against Canvas's JWKS, checks <code>aud</code>, <code>iss</code>, <code>exp</code>, <code>nonce</code>, and <code>deployment_id</code></li>
+<li><strong>Stores launch context</strong> — saves the course ID, user ID, AGS lineitem URL, and NRPS URL in DynamoDB with a 24-hour TTL</li>
+<li><strong>Creates a session token</strong> — signs an RS256 JWT containing <code>launch_id</code>, <code>course_id</code>, and <code>canvas_user_id</code> (1-hour TTL)</li>
+<li><strong>Renders the instructor SPA</strong> — returns an HTML page with the session token embedded, ready to make authenticated API calls</li>
+</ol>
+<h2 id="two-canvas-developer-keys">Two Canvas Developer Keys</h2>
+<p>Canvas requires two separate developer keys for this tool. This was confirmed with the UBC LT Hub team.</p>
+<h3 id="lti-developer-key">LTI Developer Key</h3>
+<p>Used for the OIDC launch flow, JWKS verification, and LTI services (AGS, NRPS).</p>
+<ul>
+<li><strong>Config URL:</strong> <code>{BASE_URL}/lti/config</code> — Canvas reads this JSON to auto-populate the key's settings</li>
+<li><strong>Valid scopes:</strong> Only LTI-namespaced scopes (<code>https://purl.imsglobal.org/spec/lti-ags/scope/*</code> and <code>https://purl.imsglobal.org/spec/lti-nrps/scope/*</code>)</li>
+<li><strong>Canvas REST API scopes</strong> (<code>url:GET|/api/v1/...</code>) are <strong>not valid</strong> on LTI keys — Canvas rejects them</li>
+<li>Provides: <code>client_id</code> and <code>deployment_id</code></li>
+</ul>
+<h3 id="api-developer-key">API Developer Key</h3>
+<p>Used for Canvas REST API access (fetching quizzes, questions, submissions) via OAuth2 Authorization Code flow on behalf of the instructor.</p>
+<ul>
+<li><strong>Scopes needed:</strong><ul>
+<li><code>url:GET|/api/v1/courses/:course_id/quizzes</code></li>
+<li><code>url:GET|/api/v1/courses/:course_id/quizzes/:quiz_id/questions</code></li>
+<li><code>url:GET|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions</code></li>
+<li><code>url:GET|/api/v1/courses/:course_id/assignments</code></li>
+<li><code>url:GET|/api/v1/courses/:course_id/assignments/:assignment_id/submissions</code></li>
+<li><code>url:GET|/api/v1/courses/:course_id/discussion_topics</code></li>
+<li><code>url:GET|/api/v1/courses/:course_id/discussion_topics/:topic_id/entries</code></li>
+</ul>
+</li>
+<li>Provides: <code>client_id</code> and <code>client_secret</code></li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Enable 'Allow Include Parameters'</p>
+<p>The Canvas API Developer Key <strong>must</strong> have the <strong>Allow Include Parameters</strong>
+setting enabled. Student answers are fetched via the Assignments API
+(<code>GET /courses/:course_id/assignments/:assignment_id/submissions</code>) using
+<code>include[]=submission_history</code> to retrieve the per-question
+<code>submission_data</code>. Without this setting, Canvas silently ignores the
+<code>include[]</code> query parameters and the response contains no answers — the
+grading job will be created with no gradable submissions.</p>
+<p>This setting is configured by the Canvas account admin when approving the
+developer key.</p>
+</div>
+<h2 id="jwks-endpoint">JWKS Endpoint</h2>
+<p>The tool serves its RSA public key at <code>GET /.well-known/jwks.json</code>. Canvas uses this to verify JWTs signed by the tool (e.g., AGS client assertions).</p>
+<p>Key loading (<code>src/lti/key_manager.py</code>):</p>
+<ol>
+<li>Check the <code>LTI_PRIVATE_KEY</code> environment variable for an inline PEM string</li>
+<li>If empty, fetch from SSM Parameter Store at <code>/grading-helper/lti-private-key</code> (SecureString)</li>
+<li>Derive the public JWK from the private key</li>
+<li>Both <code>get_private_key()</code> and <code>get_public_jwk()</code> are <code>lru_cache</code>-decorated — loaded once per Lambda cold start</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Key rotation requires a service restart</p>
+<p>Because both functions are cached with <code>lru_cache</code>, the private key is
+fetched once per Lambda container and reused for the lifetime of that
+container. If the key in SSM (or in the <code>LTI_PRIVATE_KEY</code> env var) is
+rotated, running Lambda containers will keep signing with the old key
+until they are recycled. To force a refresh, redeploy the stack
+(<code>sam deploy</code>) or update an env var on the function — either action
+causes Lambda to spin up new containers that re-read the key.</p>
+</div>
+<h2 id="jwt-validation">JWT Validation</h2>
+<p><code>validate_launch_token()</code> in <code>src/lti/jwt_validation.py</code> handles launch JWT verification:</p>
+<ul>
+<li>Fetches the signing key from Canvas's JWKS endpoint (cached per URL)</li>
+<li>Verifies: RS256 signature, <code>exp</code>, <code>iat</code>, <code>aud</code> (must match <code>client_id</code>), <code>iss</code> (must match <code>LTI_ISS</code>)</li>
+<li>Checks <code>nonce</code> matches the value stored during login</li>
+<li>Checks <code>deployment_id</code> — with a quirk:</li>
+</ul>
+<h3 id="deployment-id-prefix-handling">Deployment ID Prefix Handling</h3>
+<p>Canvas prefixes deployment IDs with an account ID, e.g., <code>221:your-deployment-id</code>. The tool stores only the bare deployment ID in its config. The validation code accepts both exact match and prefix match:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">if</span> <span class="n">claim_deployment_id</span> <span class="o">!=</span> <span class="n">deployment_id</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">claim_deployment_id</span> <span class="ow">and</span> <span class="n">claim_deployment_id</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;:</span><span class="si">{</span><span class="n">deployment_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">):</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="k">raise</span> <span class="n">jwt</span><span class="o">.</span><span class="n">InvalidTokenError</span><span class="p">(</span><span class="s2">&quot;Deployment ID mismatch&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="state-management">State Management</h2>
+<h3 id="lti-state-store-srcltistatepy">LTI State Store (<code>src/lti/state.py</code>)</h3>
+<p>Manages the OIDC state+nonce pairs between login initiation and launch callback.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DynamoDB key</strong></td>
+<td><code>pk=LTI_STATE#{state}</code>, <code>sk=STATE</code></td>
+</tr>
+<tr>
+<td><strong>TTL</strong></td>
+<td>10 minutes</td>
+</tr>
+<tr>
+<td><strong>Validation</strong></td>
+<td>Atomic delete with <code>ReturnValues="ALL_OLD"</code> — one-time use</td>
+</tr>
+<tr>
+<td><strong>Contents</strong></td>
+<td><code>nonce</code>, <code>platform_id</code></td>
+</tr>
+</tbody>
+</table>
+<p>The atomic delete means that if Canvas somehow posts the launch callback twice, the second attempt gets a clean "invalid state" error. No replay attacks possible.</p>
+<h3 id="launch-store-srcltilaunch_storepy">Launch Store (<code>src/lti/launch_store.py</code>)</h3>
+<p>Stores the LTI launch context (extracted from the JWT claims) for use by subsequent API calls.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DynamoDB key</strong></td>
+<td><code>pk=LAUNCH#{launch_id}</code>, <code>sk=LAUNCH</code></td>
+</tr>
+<tr>
+<td><strong>TTL</strong></td>
+<td>24 hours</td>
+</tr>
+<tr>
+<td><strong>Contents</strong></td>
+<td><code>canvas_user_id</code>, <code>course_id</code>, <code>iss</code>, <code>ags_lineitem_url</code>, <code>ags_lineitems_url</code>, <code>ags_scope</code>, <code>nrps_context_memberships_url</code></td>
+</tr>
+</tbody>
+</table>
+<p>The launch context is needed later for AGS grade passback (which needs the <code>ags_lineitem_url</code> or <code>ags_lineitems_url</code>) and for Canvas API calls (which need the <code>course_id</code> and <code>canvas_user_id</code>).</p>
+<h2 id="canvas-oauth2-flow">Canvas OAuth2 Flow</h2>
+<p>To access the Canvas REST API (for fetching quiz data), the tool needs an OAuth2 access token on behalf of the instructor. This uses the Authorization Code flow with the API Developer Key.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant Instructor
+    participant Tool as Grading Helper
+    participant Canvas
+    participant DynamoDB
+
+    Instructor-&gt;&gt;Tool: GET /lti/oauth/authorize?launch_id=xxx
+    Tool--&gt;&gt;Instructor: 302 Redirect to Canvas OAuth page
+
+    Instructor-&gt;&gt;Canvas: Authorize the app
+    Canvas--&gt;&gt;Tool: GET /lti/oauth/callback?code=xxx&amp;state=launch_id
+
+    Tool-&gt;&gt;Canvas: POST /login/oauth2/token&lt;br/&gt;(code, client_id, client_secret)
+    Canvas--&gt;&gt;Tool: access_token, expires_in
+
+    Tool-&gt;&gt;DynamoDB: Store token&lt;br/&gt;(pk=CANVAS_TOKEN#{user_id}, sk=COURSE#{course_id})
+    Tool--&gt;&gt;Instructor: "Authorized successfully" page</code></pre>
+<p>The token is stored in DynamoDB keyed by <code>canvas_user_id</code> and <code>course_id</code>, with a TTL matching the token's expiration. Subsequent Canvas API calls retrieve the stored token without re-authorizing.</p>
+<h3 id="oauth-helpers-srcltioauthpy">OAuth Helpers (<code>src/lti/oauth.py</code>)</h3>
+<ul>
+<li><code>build_auth_url()</code> — constructs the Canvas authorization URL with <code>client_id</code>, <code>redirect_uri</code>, and <code>state</code> (set to <code>launch_id</code>)</li>
+<li><code>exchange_code_for_token()</code> — exchanges the authorization code for an access token at Canvas's token endpoint</li>
+<li><code>store_canvas_token()</code> / <code>get_canvas_token()</code> — DynamoDB CRUD for OAuth tokens</li>
+</ul>
+<h2 id="ags-grade-passback">AGS Grade Passback</h2>
+<p>Assignment and Grade Services (AGS) lets the tool push AI grades back into Canvas's gradebook. This uses the LTI client credentials flow (separate from the Canvas OAuth2 flow above).</p>
+<h3 id="how-it-works">How It Works</h3>
+<ol>
+<li><strong>Get AGS token</strong> — <code>get_ags_token()</code> signs a JWT assertion with the tool's RSA private key and exchanges it at Canvas's token endpoint for a scoped access token</li>
+<li><strong>Find or create lineitem</strong> — <code>find_or_create_lineitem_url()</code> resolves the gradebook column to post scores to (see below)</li>
+<li><strong>Submit scores</strong> — <code>submit_score()</code> POSTs each grade to the lineitem's <code>/scores</code> endpoint using the AGS content type (<code>application/vnd.ims.lis.v1.score+json</code>)</li>
+<li><strong>Batch passback</strong> — <code>passback_job_grades()</code> looks up the launch context, gets an AGS token, resolves the lineitem, and submits scores for all graded submissions in a job</li>
+</ol>
+<p>The AGS token endpoint is the LTI platform's OAuth2 token URL (<code>LTI_AUTH_TOKEN_URL</code>), not the Canvas REST API. The <code>client_assertion</code> JWT is signed with the same RSA key used for session tokens.</p>
+<h3 id="lineitem-resolution">Lineitem Resolution</h3>
+<p>AGS line items represent gradebook columns in Canvas. How the tool resolves a lineitem depends on how it was launched:</p>
+<ul>
+<li><strong>Assignment launches</strong> — Canvas provides a singular <code>ags_lineitem_url</code> pointing directly to the gradebook column. The tool uses it as-is.</li>
+<li><strong>Course navigation launches</strong> — Canvas only provides <code>ags_lineitems_url</code> (the collection URL), with no specific lineitem. The tool must find or create one.</li>
+</ul>
+<p><code>find_or_create_lineitem_url()</code> handles the course navigation case:</p>
+<ol>
+<li>Lists existing lineitems via <code>GET {lineitems_url}</code> and tries to match by <code>assignment_id</code> or <code>job_name</code></li>
+<li>If no match is found, creates a new lineitem via <code>POST {lineitems_url}</code> with <code>scoreMaximum</code>, <code>label</code>, and <code>resourceId</code></li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Canvas AGS Quirk</p>
+<p>Canvas does not expose natively-created assignments via the AGS lineitems listing — it returns <code>[]</code>. This means the tool always creates a new gradebook column for course navigation launches. This is expected behavior, confirmed on ubcstaging.</p>
+</div>
+<h2 id="quiz-rest-grade-passback">Quiz REST Grade Passback</h2>
+<p>For quiz-based grading jobs, the tool uses a second passback strategy that preserves MC/true-false grades and avoids creating a new gradebook column.</p>
+<h3 id="how-it-works_1">How It Works</h3>
+<p>Instead of posting an aggregated total via AGS, <code>passback_quiz_grades_via_rest()</code> calls:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>PUT /api/v1/courses/:course_id/quizzes/:quiz_id/submissions/:quiz_submission_id
+</code></pre></div>
+<p>with a payload that includes per-question scores. Canvas recomputes the quiz total automatically, keeping any auto-graded question scores intact.</p>
+<p>The <code>quiz_submission_id</code> and <code>attempt</code> are stored on each <code>Submission</code> row during ingestion (captured from the Canvas quiz submissions API response). Submissions with <code>quiz_submission_id=0</code> are skipped (pre-migration rows).</p>
+<p>This path requires a valid Canvas OAuth token (<code>get_canvas_token()</code>). If no token exists, the endpoint returns 401. The OAuth scope needed is <code>url:PUT|/api/v1/courses/:course_id/quizzes/:quiz_id/submissions/:id</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Canvas <code>fudge_points</code> quirk</p>
+<p>If AGS passback was previously used on the same quiz submissions (e.g., during development or before the REST path existed), Canvas stores a negative <code>fudge_points</code> adjustment to reconcile the AGS-set total with the per-question scores. Subsequent REST PUTs then compute <code>question_scores + fudge_points ≈ 0</code>, silently zeroing out grades even though the PUT returns 200.</p>
+<p>The fix: always include <code>"fudge_points": 0</code> in the PUT payload to clear any prior adjustment. This is already done in <code>update_quiz_submission_scores()</code>.</p>
+</div>
+<h3 id="passback-routing-post-ltipassbackjob_id">Passback Routing (<code>POST /lti/passback/{job_id}</code>)</h3>
+<p>The passback route in <code>src/lti/routes.py</code> selects the strategy automatically:</p>
+<ul>
+<li>If <code>job.quiz_id</code> is set → quiz REST passback (<code>passback_quiz_grades_via_rest</code>)</li>
+<li>Otherwise → AGS passback (<code>passback_job_grades</code>)</li>
+</ul>
+<h2 id="canvas-api-client">Canvas API Client</h2>
+<p><code>CanvasAPIClient</code> (<code>src/lti/canvas_api.py</code>) is a synchronous httpx client for the Canvas REST API. It handles:</p>
+<ul>
+<li><strong>Pagination</strong> — Canvas returns paginated results with <code>Link</code> headers. <code>_get_all_pages()</code> follows <code>rel="next"</code> links until exhausted.</li>
+<li><strong>Quiz data</strong> — <code>list_quizzes()</code>, <code>get_quiz_questions()</code>, <code>get_quiz_submissions()</code>, <code>get_submission_answers()</code></li>
+<li><strong>Score updates</strong> — <code>update_quiz_submission_scores()</code> — PUT per-question scores for the REST passback path</li>
+<li><strong>Context manager</strong> — used as <code>with CanvasAPIClient(...) as client:</code> for proper connection cleanup</li>
+</ul>
+<h2 id="instructor-spa">Instructor SPA</h2>
+<p>After a successful LTI launch, <code>render_instructor_ui()</code> returns a full HTML/JS single-page application that runs inside the Canvas iframe. The SPA:</p>
+<ul>
+<li>Receives the session token and base URL as embedded values</li>
+<li>Lists available quizzes (via <code>GET /lti/quizzes</code>)</li>
+<li>Creates grading jobs (via <code>POST /lti/jobs</code>)</li>
+<li>Triggers AI grading (via <code>POST /jobs/{id}/grade</code>)</li>
+<li>Initiates grade passback to Canvas (via <code>POST /lti/passback/{job_id}</code>)</li>
+<li>Handles OAuth authorization if the instructor hasn't connected their Canvas account yet</li>
+</ul>
+<h2 id="known-limitations">Known Limitations</h2>
+<ul>
+<li><strong>OAuth2 iframe UX</strong> — The OAuth authorization redirect currently happens within the Canvas iframe. Some browsers may block this. A popup-based or <code>postMessage</code> approach may be needed.</li>
+<li><strong>Token refresh</strong> — Canvas OAuth tokens expire and the service does not yet implement automatic refresh token handling.</li>
+<li><strong>OAuth2 clarification pending</strong> — Waiting on UBC LT Hub for guidance on how OAuth2 redirect behaves within Canvas iframe on ubcstaging.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

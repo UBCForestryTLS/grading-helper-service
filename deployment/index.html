@@ -1,0 +1,1923 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Official documentation for UBC Faculty of Forestry AI Grading Helper Service">
+      
+      
+      
+        <link rel="canonical" href="https://forestrytls.github.io/grading-helper-service/deployment/">
+      
+      
+        <link rel="prev" href="../development/">
+      
+      
+        <link rel="next" href="../evaluation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Deployment - AI Grading Helper Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#deployment" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AI Grading Helper Docs" class="md-header__button md-logo" aria-label="AI Grading Helper Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 21v-3H3l5-5H5l5-5H7l5-5 5 5h-3l5 5h-3l5 5h-7v3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AI Grading Helper Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Deployment
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/forestrytls/grading-helper-service/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    forestrytls/grading-helper-service
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/start_here/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../lti-integration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  LTI Integration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../data-models/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Data Models
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../api/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../decisions/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Design Decisions
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../development/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Development
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deployment
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../evaluation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Evaluation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Reference
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AI Grading Helper Docs" class="md-nav__button md-logo" aria-label="AI Grading Helper Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 21v-3H3l5-5H5l5-5H7l5-5 5 5h-3l5 5h-3l5 5h-7v3z"/></svg>
+
+    </a>
+    AI Grading Helper Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/forestrytls/grading-helper-service/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    forestrytls/grading-helper-service
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/start_here/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start Here
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lti-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LTI Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#infrastructure-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Infrastructure Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sam-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SAM Parameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Process
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build Process">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manual-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Deployment
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Manual Deployment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#first-time-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First-Time Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cicd-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI/CD Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CI/CD Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-based-job-skipping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path-based job skipping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#samconfigtoml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        samconfig.toml
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iam-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IAM Policies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-and-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cost and Limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/local-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/running-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#infrastructure-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Infrastructure Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sam-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SAM Parameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Process
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build Process">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manual-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Deployment
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Manual Deployment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#first-time-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First-Time Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cicd-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI/CD Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CI/CD Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-based-job-skipping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path-based job skipping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#samconfigtoml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        samconfig.toml
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iam-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IAM Policies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-and-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cost and Limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="deployment">Deployment</h1>
+<p>The service deploys to AWS using the Serverless Application Model (SAM). This page covers the infrastructure, build process, CI/CD pipeline, and operational details.</p>
+<h2 id="infrastructure-overview">Infrastructure Overview</h2>
+<p>SAM creates the following AWS resources from <code>template.yaml</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ApiGateway</code></td>
+<td>HTTP API</td>
+<td>Routes all requests to Lambda</td>
+</tr>
+<tr>
+<td><code>ApiFunction</code></td>
+<td>Lambda Function</td>
+<td>Runs FastAPI via Mangum (Python 3.13, arm64)</td>
+</tr>
+<tr>
+<td><code>GradingTable</code></td>
+<td>DynamoDB Table</td>
+<td>Single-table for all entities</td>
+</tr>
+<tr>
+<td><code>GradingBucket</code></td>
+<td>S3 Bucket</td>
+<td>Submission data storage</td>
+</tr>
+</tbody>
+</table>
+<p>Additional resources managed outside SAM:</p>
+<ul>
+<li><strong>SSM Parameter Store</strong> — <code>/grading-helper/lti-private-key</code> (RSA private key, SecureString)</li>
+<li><strong>GitHub Actions</strong> — CI/CD for testing, deploying, and publishing docs</li>
+</ul>
+<h2 id="sam-parameters">SAM Parameters</h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Stage</code></td>
+<td>String</td>
+<td><code>dev</code></td>
+<td>Deployment stage (<code>dev</code>, <code>staging</code>, <code>prod</code>)</td>
+</tr>
+<tr>
+<td><code>BaseUrl</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>Public API Gateway URL (avoids CloudFormation circular dep)</td>
+</tr>
+<tr>
+<td><code>BedrockModelId</code></td>
+<td>String</td>
+<td><code>anthropic.claude-haiku-4-5-20251001-v1:0</code></td>
+<td>Bedrock model for AI grading</td>
+</tr>
+<tr>
+<td><code>AllowedOrigin</code></td>
+<td>String</td>
+<td><code>*</code></td>
+<td>CORS allowed origin</td>
+</tr>
+<tr>
+<td><code>LtiIss</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>LTI platform issuer URL</td>
+</tr>
+<tr>
+<td><code>LtiClientId</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>LTI Developer Key client_id</td>
+</tr>
+<tr>
+<td><code>LtiDeploymentId</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>LTI deployment_id</td>
+</tr>
+<tr>
+<td><code>LtiAuthLoginUrl</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>Canvas OIDC auth endpoint</td>
+</tr>
+<tr>
+<td><code>LtiAuthTokenUrl</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>Canvas OAuth2 token endpoint</td>
+</tr>
+<tr>
+<td><code>LtiKeySetUrl</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>Canvas JWKS URL</td>
+</tr>
+<tr>
+<td><code>ApiClientId</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>Canvas API Developer Key client_id</td>
+</tr>
+<tr>
+<td><code>ApiClientSecret</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>Canvas API Developer Key client_secret</td>
+</tr>
+<tr>
+<td><code>ApiCanvasUrl</code></td>
+<td>String</td>
+<td><code>""</code></td>
+<td>Canvas instance base URL</td>
+</tr>
+</tbody>
+</table>
+<p>These are set in <code>samconfig.toml</code> under <code>parameter_overrides</code>.</p>
+<h2 id="build-process">Build Process</h2>
+<p>The Lambda uses a custom Makefile for building because native Python packages (like <code>cryptography</code>) need to be compiled for the arm64 Lambda runtime, not the local machine.</p>
+<h3 id="build-steps">Build Steps</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># 1. Export requirements from uv lock file</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--no-hashes<span class="w"> </span>--no-dev<span class="w"> </span>-o<span class="w"> </span>requirements.txt
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># 2. Build with SAM (uses Makefile internally)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>sam<span class="w"> </span>build
+</code></pre></div>
+<p>The Makefile does two things:</p>
+<ol>
+<li>Copies the <code>src/</code> directory to the build artifacts directory</li>
+<li>Installs dependencies with pip using <code>--platform manylinux2014_aarch64 --only-binary=:all:</code> to get Linux arm64 wheels</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Always export requirements first</p>
+<p><code>sam build</code> reads from <code>requirements.txt</code>, not <code>pyproject.toml</code>. If you add a dependency with <code>uv add</code>, you must run <code>uv export</code> again before building. The CI/CD pipeline does this automatically.</p>
+</div>
+<h2 id="manual-deployment">Manual Deployment</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Full deploy sequence</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--no-hashes<span class="w"> </span>--no-dev<span class="w"> </span>-o<span class="w"> </span>requirements.txt
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>sam<span class="w"> </span>build
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>sam<span class="w"> </span>deploy<span class="w"> </span>--no-confirm-changeset
+</code></pre></div>
+<p><code>samconfig.toml</code> stores all deployment settings (stack name, region, parameter overrides), so <code>sam deploy</code> doesn't need additional flags.</p>
+<h3 id="first-time-setup">First-Time Setup</h3>
+<p>Before the first deploy, generate and store the RSA private key in SSM:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Generate RSA key</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>openssl<span class="w"> </span>genrsa<span class="w"> </span>-out<span class="w"> </span>key.pem<span class="w"> </span><span class="m">2048</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Store in SSM as SecureString</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>aws<span class="w"> </span>ssm<span class="w"> </span>put-parameter<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>--name<span class="w"> </span><span class="s2">&quot;/grading-helper/lti-private-key&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span>--value<span class="w"> </span>file://key.pem<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span>--type<span class="w"> </span>SecureString<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span>--region<span class="w"> </span>ca-central-1
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># Clean up local key</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>rm<span class="w"> </span>key.pem
+</code></pre></div>
+<p>Then set the Canvas LTI parameters in <code>samconfig.toml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">parameter_overrides</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Stage=</span><span class="se">\&quot;</span><span class="s2">dev</span><span class="se">\&quot;</span><span class="s2"> BaseUrl=</span><span class="se">\&quot;</span><span class="s2">https://xxx.execute-api.ca-central-1.amazonaws.com/dev</span><span class="se">\&quot;</span><span class="s2"> LtiIss=</span><span class="se">\&quot;</span><span class="s2">https://canvas.instructure.com</span><span class="se">\&quot;</span><span class="s2"> LtiClientId=</span><span class="se">\&quot;</span><span class="s2">your-lti-client-id</span><span class="se">\&quot;</span><span class="s2"> ...&quot;</span>
+</code></pre></div>
+<h2 id="cicd-pipeline">CI/CD Pipeline</h2>
+<p>GitHub Actions runs on every push to <code>main</code> and on pull requests.</p>
+<pre class="mermaid"><code>flowchart TD
+    Push["Push to main\nor PR"] --&gt; Test["test job"]
+    Test --&gt; Lint["Ruff lint"]
+    Lint --&gt; Format["Ruff format check"]
+    Format --&gt; Pytest["pytest"]
+
+    Push --&gt;|"main only"| Changes["changes job\n(paths-filter)"]
+    Changes --&gt;|"code changed"| Deploy["deploy job"]
+    Changes --&gt;|"docs changed"| Docs["deploy-docs job"]
+    Pytest --&gt; Deploy
+    Pytest --&gt; Docs
+
+    Deploy --&gt; ExportReqs["uv export requirements.txt"]
+    ExportReqs --&gt; SAMBuild["sam build"]
+    SAMBuild --&gt; SAMDeploy["sam deploy"]
+
+    Docs --&gt; MkDocsDeploy["mkdocs gh-deploy"]</code></pre>
+<h3 id="jobs">Jobs</h3>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Trigger</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test</code></td>
+<td>All pushes and PRs</td>
+<td><code>ruff check</code>, <code>ruff format --check</code>, <code>pytest</code></td>
+</tr>
+<tr>
+<td><code>changes</code></td>
+<td>Push to main only</td>
+<td><code>dorny/paths-filter@v3</code> — sets <code>code</code> and <code>docs</code> outputs based on which files changed</td>
+</tr>
+<tr>
+<td><code>deploy</code></td>
+<td>Push to main, <strong>only if <code>code</code> files changed</strong></td>
+<td><code>uv export</code> -&gt; <code>sam build</code> -&gt; <code>sam deploy</code></td>
+</tr>
+<tr>
+<td><code>deploy-docs</code></td>
+<td>Push to main, <strong>only if <code>docs</code> files changed</strong></td>
+<td><code>mkdocs gh-deploy --force</code> to GitHub Pages</td>
+</tr>
+</tbody>
+</table>
+<h3 id="path-based-job-skipping">Path-based job skipping</h3>
+<p>To avoid running <code>sam build</code> (or <code>mkdocs gh-deploy</code>) on pushes that don't
+affect those targets, the <code>changes</code> job inspects the diff and exposes
+two boolean outputs that gate the downstream jobs:</p>
+<table>
+<thead>
+<tr>
+<th>Output</th>
+<th>Files watched</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code</code></td>
+<td><code>src/**</code>, <code>template.yaml</code>, <code>pyproject.toml</code>, <code>uv.lock</code>, <code>Makefile</code>, <code>.github/workflows/ci.yml</code></td>
+</tr>
+<tr>
+<td><code>docs</code></td>
+<td><code>docs/**</code>, <code>mkdocs.yml</code></td>
+</tr>
+</tbody>
+</table>
+<p>Outcomes:</p>
+<ul>
+<li><strong>Docs-only push</strong> (e.g. typo fix in <code>docs/</code>) — <code>test</code> + <code>deploy-docs</code> run, <code>deploy</code> is skipped.</li>
+<li><strong>Code-only push</strong> — <code>test</code> + <code>deploy</code> run, <code>deploy-docs</code> is skipped.</li>
+<li><strong>Push touching both</strong> — all three downstream jobs run.</li>
+</ul>
+<p>The workflow file itself (<code>.github/workflows/ci.yml</code>) is intentionally in
+the <code>code</code> filter, so changes to the pipeline trigger a deploy — useful
+for verifying CI changes end-to-end on the next push.</p>
+<p>The <code>changes</code> job needs <code>pull-requests: read</code> permission for the action
+to read PR file lists; this is set at the workflow level alongside
+<code>contents: write</code>.</p>
+<p>The <code>deploy</code> job runs in the <code>production</code> environment and requires the
+following GitHub Actions secrets to be configured <strong>on the <code>production</code>
+environment</strong> (Settings → Environments → <code>production</code> → Add environment
+secret). Repository-level secrets are not picked up because the job opts
+into the environment.</p>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AWS_ACCESS_KEY_ID</code></td>
+<td>IAM user with permissions to deploy the SAM stack</td>
+</tr>
+<tr>
+<td><code>AWS_SECRET_ACCESS_KEY</code></td>
+<td>Paired with the access key above</td>
+</tr>
+<tr>
+<td><code>LTI_CLIENT_ID</code></td>
+<td>Canvas LTI Developer Key <code>client_id</code></td>
+</tr>
+<tr>
+<td><code>LTI_DEPLOYMENT_ID</code></td>
+<td>Canvas LTI deployment ID</td>
+</tr>
+<tr>
+<td><code>API_CLIENT_ID</code></td>
+<td>Canvas API Developer Key <code>client_id</code></td>
+</tr>
+<tr>
+<td><code>API_CLIENT_SECRET</code></td>
+<td>Canvas API Developer Key <code>client_secret</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>samconfig.toml</code> is <code>.gitignore</code>d (it holds <code>ApiClientSecret</code> for local
+development), so the CI workflow passes all <code>sam deploy</code> parameters
+explicitly via <code>--parameter-overrides</code>. Sensitive parameters are
+sourced from the secrets above; non-sensitive parameters (URLs, model
+ID, stage) are inlined in <code>.github/workflows/ci.yml</code>.</p>
+<p>If a deploy fails with <code>Could not load credentials from any providers</code>
+or <code>Missing option '--stack-name'</code>, the most likely cause is a missing
+secret on the <code>production</code> environment.</p>
+<h2 id="environment-variables">Environment Variables</h2>
+<p>All Lambda environment variables are set via SAM template parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Env Var</th>
+<th>Source</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TABLE_NAME</code></td>
+<td><code>!Ref GradingTable</code></td>
+<td>DynamoDB table name</td>
+</tr>
+<tr>
+<td><code>BUCKET_NAME</code></td>
+<td><code>!Ref GradingBucket</code></td>
+<td>S3 bucket name</td>
+</tr>
+<tr>
+<td><code>STAGE</code></td>
+<td><code>!Ref Stage</code></td>
+<td>Deployment stage</td>
+</tr>
+<tr>
+<td><code>POWERTOOLS_SERVICE_NAME</code></td>
+<td>hardcoded</td>
+<td><code>grading-helper</code></td>
+</tr>
+<tr>
+<td><code>BASE_URL</code></td>
+<td><code>!Ref BaseUrl</code></td>
+<td>Public API URL</td>
+</tr>
+<tr>
+<td><code>BEDROCK_MODEL_ID</code></td>
+<td><code>!Ref BedrockModelId</code></td>
+<td>Bedrock model ID</td>
+</tr>
+<tr>
+<td><code>LTI_ISS</code></td>
+<td><code>!Ref LtiIss</code></td>
+<td>Platform issuer</td>
+</tr>
+<tr>
+<td><code>LTI_CLIENT_ID</code></td>
+<td><code>!Ref LtiClientId</code></td>
+<td>LTI client ID</td>
+</tr>
+<tr>
+<td><code>LTI_DEPLOYMENT_ID</code></td>
+<td><code>!Ref LtiDeploymentId</code></td>
+<td>LTI deployment ID</td>
+</tr>
+<tr>
+<td><code>LTI_AUTH_LOGIN_URL</code></td>
+<td><code>!Ref LtiAuthLoginUrl</code></td>
+<td>OIDC auth URL</td>
+</tr>
+<tr>
+<td><code>LTI_AUTH_TOKEN_URL</code></td>
+<td><code>!Ref LtiAuthTokenUrl</code></td>
+<td>OAuth2 token URL</td>
+</tr>
+<tr>
+<td><code>LTI_KEY_SET_URL</code></td>
+<td><code>!Ref LtiKeySetUrl</code></td>
+<td>Platform JWKS URL</td>
+</tr>
+<tr>
+<td><code>API_CLIENT_ID</code></td>
+<td><code>!Ref ApiClientId</code></td>
+<td>Canvas API client ID</td>
+</tr>
+<tr>
+<td><code>API_CLIENT_SECRET</code></td>
+<td><code>!Ref ApiClientSecret</code></td>
+<td>Canvas API client secret</td>
+</tr>
+<tr>
+<td><code>API_CANVAS_URL</code></td>
+<td><code>!Ref ApiCanvasUrl</code></td>
+<td>Canvas instance URL</td>
+</tr>
+</tbody>
+</table>
+<p>The RSA private key is <strong>not</strong> set as an env var in the SAM template. The Lambda reads it from SSM at runtime using <code>SSMParameterReadPolicy</code>.</p>
+<h2 id="samconfigtoml">samconfig.toml</h2>
+<p>This file stores default <code>sam deploy</code> settings so you don't have to pass flags every time:</p>
+<ul>
+<li><strong>Stack name:</strong> <code>grading-helper-service</code></li>
+<li><strong>Region:</strong> <code>ca-central-1</code></li>
+<li><strong>Capabilities:</strong> <code>CAPABILITY_IAM</code> (Lambda execution role)</li>
+<li><strong>Parameter overrides:</strong> All the SAM parameters listed above</li>
+</ul>
+<h2 id="iam-policies">IAM Policies</h2>
+<p>The Lambda function has four IAM policies:</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DynamoDBCrudPolicy</code></td>
+<td>Full CRUD on the <code>GradingTable</code></td>
+</tr>
+<tr>
+<td><code>S3CrudPolicy</code></td>
+<td>Full CRUD on the <code>GradingBucket</code></td>
+</tr>
+<tr>
+<td><code>SSMParameterReadPolicy</code></td>
+<td>Read <code>/grading-helper/lti-private-key</code></td>
+</tr>
+<tr>
+<td>Custom Bedrock statement</td>
+<td><code>bedrock:InvokeModel</code> on the configured model ARN</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cost-and-limits">Cost and Limits</h2>
+<ul>
+<li><strong>Budget alert:</strong> $25/month (set in AWS Budgets)</li>
+<li><strong>Lambda concurrency:</strong> 10 total (account-level limit — <code>ReservedConcurrentExecutions</code> cannot be used)</li>
+<li><strong>API Gateway throttle:</strong> 5 requests/second, burst 10</li>
+<li><strong>DynamoDB:</strong> PAY_PER_REQUEST (no reserved capacity)</li>
+<li><strong>S3 lifecycle:</strong> Objects under <code>batch/</code> expire after 90 days</li>
+</ul>
+<p>The service is designed for low-traffic academic use. The throttle limits and pay-per-request billing keep costs minimal during development and early adoption.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
