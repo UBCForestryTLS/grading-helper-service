@@ -107,8 +107,11 @@ flowchart TD
     Lint --> Format["Ruff format check"]
     Format --> Pytest["pytest"]
 
-    Pytest -->|"main only"| Deploy["deploy job"]
-    Pytest -->|"main only"| Docs["deploy-docs job"]
+    Push -->|"main only"| Changes["changes job\n(paths-filter)"]
+    Changes -->|"code changed"| Deploy["deploy job"]
+    Changes -->|"docs changed"| Docs["deploy-docs job"]
+    Pytest --> Deploy
+    Pytest --> Docs
 
     Deploy --> ExportReqs["uv export requirements.txt"]
     ExportReqs --> SAMBuild["sam build"]
@@ -122,8 +125,34 @@ flowchart TD
 | Job | Trigger | What it does |
 |-----|---------|-------------|
 | `test` | All pushes and PRs | `ruff check`, `ruff format --check`, `pytest` |
-| `deploy` | Push to main only | `uv export` -> `sam build` -> `sam deploy` |
-| `deploy-docs` | Push to main only | `mkdocs gh-deploy --force` to GitHub Pages |
+| `changes` | Push to main only | `dorny/paths-filter@v3` — sets `code` and `docs` outputs based on which files changed |
+| `deploy` | Push to main, **only if `code` files changed** | `uv export` -> `sam build` -> `sam deploy` |
+| `deploy-docs` | Push to main, **only if `docs` files changed** | `mkdocs gh-deploy --force` to GitHub Pages |
+
+### Path-based job skipping
+
+To avoid running `sam build` (or `mkdocs gh-deploy`) on pushes that don't
+affect those targets, the `changes` job inspects the diff and exposes
+two boolean outputs that gate the downstream jobs:
+
+| Output | Files watched |
+|--------|---------------|
+| `code` | `src/**`, `template.yaml`, `pyproject.toml`, `uv.lock`, `Makefile`, `.github/workflows/ci.yml` |
+| `docs` | `docs/**`, `mkdocs.yml` |
+
+Outcomes:
+
+- **Docs-only push** (e.g. typo fix in `docs/`) — `test` + `deploy-docs` run, `deploy` is skipped.
+- **Code-only push** — `test` + `deploy` run, `deploy-docs` is skipped.
+- **Push touching both** — all three downstream jobs run.
+
+The workflow file itself (`.github/workflows/ci.yml`) is intentionally in
+the `code` filter, so changes to the pipeline trigger a deploy — useful
+for verifying CI changes end-to-end on the next push.
+
+The `changes` job needs `pull-requests: read` permission for the action
+to read PR file lists; this is set at the workflow level alongside
+`contents: write`.
 
 The `deploy` job runs in the `production` environment and requires the
 following GitHub Actions secrets to be configured **on the `production`
