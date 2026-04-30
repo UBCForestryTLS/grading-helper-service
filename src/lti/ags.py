@@ -20,7 +20,11 @@ def get_ags_token(client_id: str, auth_token_url: str) -> str:
     """
     from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-    private_key = load_pem_private_key(get_private_key().encode(), password=None)
+    try:
+        private_key = load_pem_private_key(get_private_key().encode(), password=None)
+    except Exception:
+        logger.exception("Failed to load LTI private key for AGS token signing")
+        raise RuntimeError("Could not load signing key") from None
 
     now = int(time.time())
     assertion_payload = {

@@ -98,7 +98,9 @@ def render_instructor_ui(
                  font-size: 0.9em; padding: 0; }}
     .btn-link:hover {{ text-decoration: underline; background: none; }}
 
-    #results-table td:nth-child(2), #results-table td:nth-child(5) {{
+    #results-table td:nth-child(2),
+    #results-table td:nth-child(3),
+    #results-table td:nth-child(6) {{
       max-width: 250px; word-break: break-word;
     }}
     #history-table tbody tr:hover {{ background: #f8f8f8; }}
@@ -190,6 +192,7 @@ def render_instructor_ui(
         <thead>
           <tr>
             <th>Question</th>
+            <th>Question Text</th>
             <th>Student Answer</th>
             <th>AI Grade</th>
             <th>Max</th>
@@ -239,6 +242,19 @@ def render_instructor_ui(
       }};
     }}
 
+    // Canvas returns question text and (sometimes) student answers wrapped in
+    // HTML markup like <p><span>...</span></p>. Render that into a detached
+    // element and read textContent to get the plain-text version. Using a
+    // detached node means any <script> in the HTML never executes.
+    function stripHtml(value) {{
+      if (value == null) return '';
+      const s = String(value);
+      if (s.indexOf('<') === -1) return s;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = s;
+      return (tmp.textContent || tmp.innerText || '').trim();
+    }}
+
     function showError(elementId, msg) {{
       const el = document.getElementById(elementId);
       el.textContent = msg;
@@ -262,11 +278,33 @@ def render_instructor_ui(
     }}
 
     function switchTab(tab) {{
+      // If the user is currently viewing a past job's results (which renders
+      // inside the Grade tab) and clicks "Grade a Quiz", reset the Grade tab
+      // back to step 1 so they can start a fresh grading job.
+      if (tab === 'grade' && cameFromHistory) {{
+        resetGradeTab();
+      }}
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       document.getElementById('tab-btn-' + tab).classList.add('active');
       document.getElementById('tab-' + tab).classList.add('active');
       if (tab === 'history') loadPastJobs();
+    }}
+
+    // Restore the Grade tab to its initial "select a quiz" state. Used when
+    // returning from a past-job results view so the next grading run starts
+    // cleanly without leftover UI from the previous job.
+    function resetGradeTab() {{
+      cameFromHistory = false;
+      currentJobId = null;
+      document.getElementById('section-quiz').classList.remove('hidden');
+      document.getElementById('section-grading').classList.add('hidden');
+      document.getElementById('section-results').classList.add('hidden');
+      document.getElementById('btn-back-history').classList.add('hidden');
+      document.getElementById('results-title').textContent = 'Grading Results';
+      document.getElementById('passback-status').classList.add('hidden');
+      document.getElementById('btn-passback').disabled = false;
+      setStep(1);
     }}
 
     function setStep(n) {{
@@ -278,6 +316,9 @@ def render_instructor_ui(
       }});
     }}
 
+    // Fetch the instructor's quizzes from Canvas via the LTI proxy endpoint.
+    // If Canvas returns 401 the instructor needs to OAuth-authorize the tool;
+    // we surface the authorize link instead of an error.
     async function loadQuizzes() {{
       document.getElementById('btn-load-quizzes').disabled = true;
       document.getElementById('quiz-error').classList.add('hidden');
@@ -316,6 +357,10 @@ def render_instructor_ui(
       }}
     }}
 
+    // Three-step flow: (1) create the grading job from the chosen quiz,
+    // (2) kick off the AI grading run, (3) start polling for completion.
+    // The AI grading endpoint returns immediately; results land in DynamoDB
+    // as Bedrock calls finish, which is why we poll the job status below.
     async function startGrading() {{
       const select = document.getElementById('quiz-select');
       const quizId = select.value;
@@ -364,6 +409,12 @@ def render_instructor_ui(
     }}
 
     function pollJobStatus() {{
+      // Guard against overlapping pollers if startGrading is triggered twice
+      // before a previous interval clears (e.g. user double-clicks).
+      if (pollTimer) {{
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }}
       pollTimer = setInterval(async () => {{
         try {{
           const resp = await fetch(BASE_URL + '/jobs/' + currentJobId, {{
@@ -389,6 +440,10 @@ def render_instructor_ui(
       }}, 2000);
     }}
 
+    // Fetch all submissions for the current job and render them grouped by
+    // student. Computes summary stats (student count, question count, average
+    // percentage, max points) and populates the results table with one
+    // student-header row followed by one row per question.
     async function showResults() {{
       document.getElementById('btn-passback').disabled = false;
       document.getElementById('passback-status').classList.add('hidden');
@@ -453,7 +508,7 @@ def render_instructor_ui(
         const headerRow = document.createElement('tr');
         headerRow.classList.add('student-header');
         const headerTd = document.createElement('td');
-        headerTd.colSpan = 5;
+        headerTd.colSpan = 6;
         headerTd.textContent = 'Student ' + uid + '  \u2014  ' +
           studentScore.toFixed(1) + ' / ' + studentMax.toFixed(1) + ' points';
         headerRow.appendChild(headerTd);
@@ -462,11 +517,12 @@ def render_instructor_ui(
         studentSubs.forEach(sub => {{
           const tr = document.createElement('tr');
           [
-            sub.question_name || ('Q' + sub.question_id),
-            sub.student_answer,
+            stripHtml(sub.question_name) || ('Q' + sub.question_id),
+            stripHtml(sub.question_text) || '\u2014',
+            stripHtml(sub.student_answer),
             sub.ai_grade != null ? sub.ai_grade : '\u2014',
             sub.points_possible,
-            sub.ai_feedback || '\u2014',
+            stripHtml(sub.ai_feedback) || '\u2014',
           ].forEach(val => {{
             const td = document.createElement('td');
             td.textContent = val;
@@ -482,6 +538,9 @@ def render_instructor_ui(
       document.getElementById('section-results').classList.remove('hidden');
     }}
 
+    // Load all past grading jobs for this course and render them in the
+    // history table, sorted newest-first. Only COMPLETED jobs get a
+    // "View Results" button.
     async function loadPastJobs() {{
       const tbody = document.getElementById('history-tbody');
       const emptyMsg = document.getElementById('history-empty');
@@ -501,6 +560,12 @@ def render_instructor_ui(
           emptyMsg.classList.remove('hidden');
           return;
         }}
+        // Sort newest-first so the most recently graded jobs appear at the top.
+        jobs.sort((a, b) => {{
+          const da = new Date(a.created_at).getTime();
+          const db = new Date(b.created_at).getTime();
+          return db - da;
+        }});
         jobs.forEach(job => {{
           const tr = document.createElement('tr');
 
@@ -547,6 +612,9 @@ def render_instructor_ui(
       }}
     }}
 
+    // Open a past job's results in the Grade tab. Hides the quiz selector
+    // and grading-progress sections, surfaces the "Back to Past Jobs" link,
+    // and reuses showResults() to render the table.
     async function viewJobResults(jobId, jobName) {{
       currentJobId = jobId;
       cameFromHistory = true;
@@ -565,17 +633,15 @@ def render_instructor_ui(
     }}
 
     function backToHistory() {{
-      cameFromHistory = false;
-      document.getElementById('section-quiz').classList.remove('hidden');
-      document.getElementById('section-results').classList.add('hidden');
-      document.getElementById('btn-back-history').classList.add('hidden');
-      document.getElementById('results-title').textContent = 'Grading Results';
-      document.getElementById('passback-status').classList.add('hidden');
-      document.getElementById('btn-passback').disabled = false;
-      setStep(1);
+      // Reset the Grade tab so a future visit starts fresh, then switch back
+      // to the Past Jobs list view.
+      resetGradeTab();
       switchTab('history');
     }}
 
+    // Send the current job's AI grades back to Canvas. The server picks the
+    // right passback path (REST per-question PUT for quizzes, AGS score
+    // submission otherwise) based on whether the job has a quiz_id.
     async function pushGrades() {{
       document.getElementById('btn-passback').disabled = true;
       document.getElementById('passback-status').classList.remove('hidden');

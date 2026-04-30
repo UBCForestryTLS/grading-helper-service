@@ -303,10 +303,13 @@ def lti_create_job(
                 )
             assignment_id = quiz.get("assignment_id")
             logger.info(
-                "Quiz %s: assignment_id=%s, quiz_type=%s",
+                "lti_create_job: quiz=%s, assignment_id=%s, quiz_type=%s, "
+                "course_id=%s, canvas_user_id=%s",
                 body.quiz_id,
                 assignment_id,
                 quiz.get("quiz_type"),
+                session.course_id,
+                session.canvas_user_id,
             )
 
             questions = canvas_client.get_quiz_questions(

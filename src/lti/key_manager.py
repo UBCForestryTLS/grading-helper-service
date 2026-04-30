@@ -1,4 +1,11 @@
-"""RSA key management for LTI 1.3 JWT signing and JWKS endpoint."""
+"""RSA key management for LTI 1.3 JWT signing and JWKS endpoint.
+
+Note on key rotation: both `get_private_key` and `get_public_jwk` are cached
+with `lru_cache`, so the key is fetched once per process (Lambda cold start).
+If the key is rotated in SSM, running Lambda containers will keep using the
+old value until they are recycled — redeploy or otherwise restart the
+service to pick up a new key.
+"""
 
 import functools
 import json

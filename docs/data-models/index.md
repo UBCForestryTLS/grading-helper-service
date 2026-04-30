@@ -9,8 +9,8 @@ All entities share a single DynamoDB table with a composite primary key (`pk` + 
 ```mermaid
 erDiagram
     GradingJob {
-        string pk "JOB#{job_id}"
-        string sk "METADATA"
+        string partition_key PK "JOB#job_id"
+        string sort_key PK "METADATA"
         string job_id
         string course_id
         string quiz_id
@@ -25,8 +25,8 @@ erDiagram
     }
 
     Submission {
-        string pk "JOB#{job_id}"
-        string sk "SUB#{submission_id}"
+        string partition_key PK "JOB#job_id"
+        string sort_key PK "SUB#submission_id"
         string submission_id
         string job_id
         int question_id
@@ -45,16 +45,16 @@ erDiagram
     }
 
     LTIState {
-        string pk "LTI_STATE#{state}"
-        string sk "STATE"
+        string partition_key PK "LTI_STATE#state"
+        string sort_key PK "STATE"
         string nonce
         string platform_id
         int ttl
     }
 
     LaunchContext {
-        string pk "LAUNCH#{launch_id}"
-        string sk "LAUNCH"
+        string partition_key PK "LAUNCH#launch_id"
+        string sort_key PK "LAUNCH"
         string launch_id
         string canvas_user_id
         string course_id
@@ -66,8 +66,8 @@ erDiagram
     }
 
     CanvasToken {
-        string pk "CANVAS_TOKEN#{canvas_user_id}"
-        string sk "COURSE#{course_id}"
+        string partition_key PK "CANVAS_TOKEN#canvas_user_id"
+        string sort_key PK "COURSE#course_id"
         string access_token
         int ttl
     }

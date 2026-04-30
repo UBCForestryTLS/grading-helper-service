@@ -85,6 +85,18 @@ Used for Canvas REST API access (fetching quizzes, questions, submissions) via O
     - `url:GET|/api/v1/courses/:course_id/discussion_topics/:topic_id/entries`
 - Provides: `client_id` and `client_secret`
 
+!!! warning "Enable 'Allow Include Parameters'"
+    The Canvas API Developer Key **must** have the **Allow Include Parameters**
+    setting enabled. Student answers are fetched via the Assignments API
+    (`GET /courses/:course_id/assignments/:assignment_id/submissions`) using
+    `include[]=submission_history` to retrieve the per-question
+    `submission_data`. Without this setting, Canvas silently ignores the
+    `include[]` query parameters and the response contains no answers — the
+    grading job will be created with no gradable submissions.
+
+    This setting is configured by the Canvas account admin when approving the
+    developer key.
+
 ## JWKS Endpoint
 
 The tool serves its RSA public key at `GET /.well-known/jwks.json`. Canvas uses this to verify JWTs signed by the tool (e.g., AGS client assertions).
@@ -95,6 +107,15 @@ Key loading (`src/lti/key_manager.py`):
 2. If empty, fetch from SSM Parameter Store at `/grading-helper/lti-private-key` (SecureString)
 3. Derive the public JWK from the private key
 4. Both `get_private_key()` and `get_public_jwk()` are `lru_cache`-decorated — loaded once per Lambda cold start
+
+!!! warning "Key rotation requires a service restart"
+    Because both functions are cached with `lru_cache`, the private key is
+    fetched once per Lambda container and reused for the lifetime of that
+    container. If the key in SSM (or in the `LTI_PRIVATE_KEY` env var) is
+    rotated, running Lambda containers will keep signing with the old key
+    until they are recycled. To force a refresh, redeploy the stack
+    (`sam deploy`) or update an env var on the function — either action
+    causes Lambda to spin up new containers that re-read the key.
 
 ## JWT Validation
 
