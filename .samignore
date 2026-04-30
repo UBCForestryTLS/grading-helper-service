@@ -1,0 +1,14 @@
+tests/
+docs/
+site/
+data/
+evaluation/
+.github/
+.git/
+.venv/
+*.md
+.pre-commit-config.yaml
+mkdocs.yml
+uv.lock
+pyproject.toml
+CLAUDE.md

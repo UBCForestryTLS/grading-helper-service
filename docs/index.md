@@ -2,16 +2,22 @@
 
 Official documentation for the UBC Faculty of Forestry [AI Grading Helper Service](https://github.com/forestrytls/grading-helper-service/)
 
+
 ## Navigation
 
 | Section | Description |
 |---------|-------------|
 | **[Getting Started](getting-started/start_here.md)** | Learn about project origins, motivation, and user stories |
+| **[Architecture](architecture/index.md)** | System design, component breakdown, and architectural patterns |
+| **[LTI Integration](lti-integration/index.md)** | LTI 1.3 OIDC flow, Canvas setup, OAuth2, grade passback |
+| **[Data Models](data-models/index.md)** | DynamoDB schema, entity keys, Pydantic models |
+| **[API Reference](api/index.md)** | All HTTP endpoints with request/response examples |
+| **[Design Decisions](decisions/index.md)** | Why we chose each technology and pattern |
 | **[Development](development/index.md)** | Set up your environment and start contributing |
-| **[Architecture](architecture/index.md)** | Understand the system design and components |
-| **[API Reference](api/index.md)** | Explore API endpoints and integration options |
-| **[Evaluation](evaluation/index.md)** | Review grading accuracy and validation methods |
-| **[Deployment](deployment/index.md)** | Deploy the service to production |
+| **[Deployment](deployment/index.md)** | SAM template, CI/CD pipeline, infrastructure |
+| **[Evaluation](evaluation/index.md)** | Planned grading accuracy validation |
+| **[Guides](guides/index.md)** | Step-by-step guides for common tasks |
+| **[Reference](reference/index.md)** | Environment variables, error codes, glossary |
 
 ## About This Project
 
