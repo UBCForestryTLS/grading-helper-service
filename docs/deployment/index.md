@@ -125,7 +125,30 @@ flowchart TD
 | `deploy` | Push to main only | `uv export` -> `sam build` -> `sam deploy` |
 | `deploy-docs` | Push to main only | `mkdocs gh-deploy --force` to GitHub Pages |
 
-The `deploy` job requires AWS credentials stored as GitHub repository secrets (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) and runs in the `production` environment.
+The `deploy` job runs in the `production` environment and requires the
+following GitHub Actions secrets to be configured **on the `production`
+environment** (Settings → Environments → `production` → Add environment
+secret). Repository-level secrets are not picked up because the job opts
+into the environment.
+
+| Secret | Purpose |
+|--------|---------|
+| `AWS_ACCESS_KEY_ID` | IAM user with permissions to deploy the SAM stack |
+| `AWS_SECRET_ACCESS_KEY` | Paired with the access key above |
+| `LTI_CLIENT_ID` | Canvas LTI Developer Key `client_id` |
+| `LTI_DEPLOYMENT_ID` | Canvas LTI deployment ID |
+| `API_CLIENT_ID` | Canvas API Developer Key `client_id` |
+| `API_CLIENT_SECRET` | Canvas API Developer Key `client_secret` |
+
+`samconfig.toml` is `.gitignore`d (it holds `ApiClientSecret` for local
+development), so the CI workflow passes all `sam deploy` parameters
+explicitly via `--parameter-overrides`. Sensitive parameters are
+sourced from the secrets above; non-sensitive parameters (URLs, model
+ID, stage) are inlined in `.github/workflows/ci.yml`.
+
+If a deploy fails with `Could not load credentials from any providers`
+or `Missing option '--stack-name'`, the most likely cause is a missing
+secret on the `production` environment.
 
 ## Environment Variables
 
