@@ -52,7 +52,32 @@ jobs:
       - name: SAM build
         run: sam build
       - name: SAM deploy
-        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+        # samconfig.toml is gitignored (it holds ApiClientSecret), so pass
+        # all deploy parameters explicitly here. The Canvas API client secret
+        # comes from the production environment's GitHub Actions secrets.
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --stack-name grading-helper-service \
+            --region ca-central-1 \
+            --resolve-s3 \
+            --s3-prefix grading-helper-service \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+              Stage=dev \
+              BaseUrl=https://pcvifjrm5g.execute-api.ca-central-1.amazonaws.com/dev \
+              AllowedOrigin=https://pcvifjrm5g.execute-api.ca-central-1.amazonaws.com \
+              LtiIss=https://canvas.instructure.com \
+              LtiClientId=${{ secrets.LTI_CLIENT_ID }} \
+              LtiDeploymentId=${{ secrets.LTI_DEPLOYMENT_ID }} \
+              LtiAuthLoginUrl=https://sso.canvaslms.com/api/lti/authorize_redirect \
+              LtiAuthTokenUrl=https://sso.canvaslms.com/login/oauth2/token \
+              LtiKeySetUrl=https://sso.canvaslms.com/api/lti/security/jwks \
+              ApiClientId=${{ secrets.API_CLIENT_ID }} \
+              ApiClientSecret=${{ secrets.API_CLIENT_SECRET }} \
+              ApiCanvasUrl=https://ubcstaging.instructure.com \
+              BedrockModelId=us.anthropic.claude-haiku-4-5-20251001-v1:0
 
   deploy-docs:
     runs-on: ubuntu-latest
