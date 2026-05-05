@@ -1,9 +1,9 @@
 build-ApiFunction:
-	cp -r src $(ARTIFACTS_DIR)/src
-	python3.12 -m pip install \
-		--platform manylinux2014_aarch64 \
+	powershell -Command "Copy-Item -Recurse src $(ARTIFACTS_DIR)/src"
+	python -m pip install \
+		--platform manylinux2014_x86_64 \
 		--only-binary=:all: \
 		--implementation cp \
-		--python-version 3.12 \
+		--python-version 3.11\
 		-r requirements.txt \
 		-t $(ARTIFACTS_DIR)/

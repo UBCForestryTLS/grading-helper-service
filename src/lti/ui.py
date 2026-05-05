@@ -54,6 +54,7 @@ def render_instructor_ui(
     .badge-processing {{ background: #cce5ff; color: #004085; }}
     .badge-done {{ background: #d4edda; color: #155724; }}
     .badge-failed {{ background: #f8d7da; color: #721c24; }}
+    .badge-cancelled {{ background: #b9bdba; color: #666967; }}
     a.authorize-link {{ color: #0066cc; text-decoration: none; }}
     a.authorize-link:hover {{ text-decoration: underline; }}
 
@@ -147,6 +148,9 @@ def render_instructor_ui(
         <button id="btn-start-grading" onclick="startGrading()" disabled>
           Start AI Grading
         </button>
+		<button id="btn-cancel-grading" style="display:none;">Cancel Grading</button>
+
+<div id="grading-status"></div>
       </div>
       <div id="auth-prompt" class="hidden">
         <p>Canvas access not authorized yet.</p>
@@ -386,6 +390,8 @@ def render_instructor_ui(
         }}
         const job = await resp.json();
         currentJobId = job.job_id;
+        
+        document.getElementById('btn-cancel-grading').style.display = 'inline-block';
 
         document.getElementById('grading-status').textContent = 'Starting AI grading...';
         const gradeResp = await fetch(BASE_URL + '/jobs/' + currentJobId + '/grade', {{
@@ -395,6 +401,8 @@ def render_instructor_ui(
         if (!gradeResp.ok) {{
           document.getElementById('grading-status').textContent = await getErrorMessage(gradeResp);
           document.getElementById('btn-start-grading').disabled = false;
+          document.getElementById('btn-cancel-grading').style.display = 'none';
+          setStep(1);
           return;
         }}
 
@@ -404,6 +412,7 @@ def render_instructor_ui(
         document.getElementById('grading-status').textContent =
           'Could not connect to the server. Please try again.';
         document.getElementById('btn-start-grading').disabled = false;
+        document.getElementById('btn-cancel-grading').style.display = 'none';
         setStep(1);
       }}
     }}
@@ -428,12 +437,27 @@ def render_instructor_ui(
           if (job.status === 'COMPLETED') {{
             clearInterval(pollTimer);
             setStep(3);
+            document.getElementById('btn-cancel-grading').style.display = 'none';
+			document.getElementById('btn-start-grading').disabled = false;
             await showResults();
           }} else if (job.status === 'FAILED') {{
             clearInterval(pollTimer);
             document.getElementById('grading-status').textContent =
               'Grading failed: ' + (job.error_message || 'Unknown error');
-          }}
+              document.getElementById('btn-cancel-grading').style.display = 'none';
+			  document.getElementById('btn-start-grading').disabled = false;
+          }} else if (job.status === 'CANCELLED') {{
+				clearInterval(pollTimer);
+
+				document.getElementById('grading-status').textContent =
+					'Grading cancelled.';
+
+				document.getElementById('btn-cancel-grading').style.display = 'none';
+				document.getElementById('btn-start-grading').disabled = false;
+
+				setStep(1);
+		  }}
+
         }} catch (e) {{
           // Keep polling on transient errors
         }}
@@ -589,12 +613,14 @@ def render_instructor_ui(
             'FAILED': 'badge-failed',
             'PROCESSING': 'badge-processing',
             'PENDING': 'badge-pending',
+            'CANCELED': 'badge-cancelled',
           }}[job.status] || 'badge-pending';
           badge.classList.add(statusClass);
           badge.textContent = job.status;
           tdStatus.appendChild(badge);
           tr.appendChild(tdStatus);
 
+          
           const tdAction = document.createElement('td');
           if (job.status === 'COMPLETED') {{
             const btn = document.createElement('button');
@@ -668,6 +694,7 @@ def render_instructor_ui(
         document.getElementById('btn-passback').disabled = false;
       }}
     }}
+    
   </script>
 </body>
 </html>"""
