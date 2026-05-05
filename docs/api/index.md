@@ -115,6 +115,16 @@ Start AI grading for all submissions in a job. Uses Bedrock Claude Haiku 4.5 wit
 
 **Response:** Updated `GradingJob` object
 
+### `POST /jobs/{job_id}/cancel`
+
+Cancel a job with status `PENDING` or `PROCESSING`
+
+- **Auth:** Required
+- **Errors:** 404 if job not found, 403 if job belongs to a different course, 409 if job is already COMPLETED, FAILED, or CANCELLED
+- The job status transitions: `PENDING` → `CANCELLED` or `PROCESSING` → `CANCELLED`
+
+**Response:** Updated `GradingJob` object with `"status": "CANCELELD"`
+
 ### `GET /jobs/{job_id}/submissions`
 
 List all submissions for a grading job, including AI grades and feedback if grading is complete.
