@@ -106,13 +106,24 @@ async def lti_launch(request: Request):
     launch_id = launch_store.create(claims)
     session_token = create_session_token(launch_id, course_id, canvas_user_id)
 
+    allowed_roles = ["Instructor", "TeachingAssistant", "Administrator"]
+
+    # Build roles list, only allowing expected roles
+    roles = []
+    for r in roles_raw:
+        role_name = r.split("#")[-1]
+        if role_name in allowed_roles:
+            roles.append(escape(role_name))
+        else:
+            raise ValueError(f"Unexpected role in launch token: {r}")
+
     html = render_instructor_ui(
         launch_id=launch_id,
         session_token=session_token,
         base_url=settings.base_url,
         user_name=claims.get("name", ""),
         course_title=context.get("title", ""),
-        roles=[escape(r.split("/")[-1]) for r in roles_raw],
+        roles=roles,
     )
     return HTMLResponse(content=html)
 
