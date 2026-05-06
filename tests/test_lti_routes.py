@@ -282,13 +282,12 @@ class TestLTILaunch:
                 data={"id_token": id_token, "state": state},
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 403
         # New response is the instructor UI (not the old placeholder page)
-        assert "Test User" in response.text
-        assert "Intro to Forestry" in response.text
-        assert "Learner" in response.text
-        # Session token is embedded in the UI
-        assert "session-token" in response.text
+        assert "Access Restricted" in response.text
+        assert "Intro to Forestry" not in response.text
+        assert "Test User" not in response.text
+        assert "session-token" not in response.text
 
     def test_launch_valid_flow_TA_user(self, client, mock_table):
         """Full login-to-launch flow with a real JWT."""
