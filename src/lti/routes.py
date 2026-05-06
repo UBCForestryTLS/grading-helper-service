@@ -98,13 +98,6 @@ async def lti_launch(request: Request):
     context = claims.get("https://purl.imsglobal.org/spec/lti/claim/context", {})
     custom = claims.get("https://purl.imsglobal.org/spec/lti/claim/custom", {})
     roles_raw = claims.get("https://purl.imsglobal.org/spec/lti/claim/roles", [])
-    # Prefer Canvas numeric IDs from custom claims; fall back to opaque LTI IDs
-    course_id = str(custom.get("canvas_course_id", context.get("id", "")))
-    canvas_user_id = str(custom.get("canvas_user_id", claims.get("sub", "")))
-
-    launch_store = LaunchStore()
-    launch_id = launch_store.create(claims)
-    session_token = create_session_token(launch_id, course_id, canvas_user_id)
 
     ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"]
 
@@ -123,6 +116,14 @@ async def lti_launch(request: Request):
         """,
             status_code=403,
         )
+
+    # Prefer Canvas numeric IDs from custom claims; fall back to opaque LTI IDs
+    course_id = str(custom.get("canvas_course_id", context.get("id", "")))
+    canvas_user_id = str(custom.get("canvas_user_id", claims.get("sub", "")))
+
+    launch_store = LaunchStore()
+    launch_id = launch_store.create(claims)
+    session_token = create_session_token(launch_id, course_id, canvas_user_id)
 
     html = render_instructor_ui(
         launch_id=launch_id,
