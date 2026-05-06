@@ -98,6 +98,25 @@ async def lti_launch(request: Request):
     context = claims.get("https://purl.imsglobal.org/spec/lti/claim/context", {})
     custom = claims.get("https://purl.imsglobal.org/spec/lti/claim/custom", {})
     roles_raw = claims.get("https://purl.imsglobal.org/spec/lti/claim/roles", [])
+
+    ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"]
+
+    # Build roles list, only allowing expected roles
+    role_names = [r.split("#")[-1] for r in roles_raw]
+    if not any(role in ALLOWED_ROLES for role in role_names):
+        return HTMLResponse(
+            content="""
+        <html>
+        <body style="font-family: sans-serif; padding: 2rem; text-align: center;">
+            <h2>Access Restricted</h2>
+            <p>This tool is only available to instructors and teaching assistants.</p>
+            <p>If you believe this is an error, please contact your instructor.</p>
+        </body>
+        </html>
+        """,
+            status_code=403,
+        )
+
     # Prefer Canvas numeric IDs from custom claims; fall back to opaque LTI IDs
     course_id = str(custom.get("canvas_course_id", context.get("id", "")))
     canvas_user_id = str(custom.get("canvas_user_id", claims.get("sub", "")))
@@ -112,7 +131,7 @@ async def lti_launch(request: Request):
         base_url=settings.base_url,
         user_name=claims.get("name", ""),
         course_title=context.get("title", ""),
-        roles=[escape(r.split("/")[-1]) for r in roles_raw],
+        roles=[escape(r) for r in role_names if r in ALLOWED_ROLES],
     )
     return HTMLResponse(content=html)
 

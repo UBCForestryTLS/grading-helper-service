@@ -74,7 +74,7 @@ The API will be available at `http://localhost:3000`. Note that LTI endpoints wo
 
 ### `uv sync` fails with Python version error
 
-Make sure you have Python 3.13 installed. Check with `python3.13 --version`. If you're using pyenv:
+Make sure you have Python 3.13 installed. Check with `python3.12 --version`. If you're using pyenv:
 
 ```bash
 pyenv install 3.13
@@ -84,7 +84,7 @@ pyenv local 3.13
 ### `sam build` fails
 
 - Make sure Docker is running
-- The Makefile hardcodes the pip path (`/opt/homebrew/bin/python3.13`). If your Python is installed elsewhere, update the Makefile or create a symlink.
+- The Makefile hardcodes the pip path (`/opt/homebrew/bin/python3.12`). If your Python is installed elsewhere, update the Makefile or create a symlink.
 
 ### Tests fail with import errors
 

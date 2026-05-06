@@ -224,6 +224,203 @@ class TestLTILaunch:
         # Session token is embedded in the UI
         assert "session-token" in response.text
 
+    def test_launch_invalid_flow_student_user(self, client, mock_table):
+        """Full login-to-launch flow with a real JWT."""
+        # Step 1: OIDC login to get state
+        login_resp = client.get(
+            "/lti/login",
+            params={
+                "iss": "https://canvas.test.instructure.com",
+                "login_hint": "user123",
+                "target_link_uri": "https://test.execute-api.ca-central-1.amazonaws.com/dev/lti/launch",
+            },
+            follow_redirects=False,
+        )
+        location = login_resp.headers["location"]
+        # Extract state and nonce from redirect URL
+        from urllib.parse import parse_qs, urlparse
+
+        query = parse_qs(urlparse(location).query)
+        state = query["state"][0]
+        nonce = query["nonce"][0]
+
+        # Step 2: Create a signed JWT (simulating Canvas)
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        claims = {
+            "iss": "https://canvas.test.instructure.com",
+            "aud": "10000000000001",
+            "sub": "user-456",
+            "nonce": nonce,
+            "exp": int(time.time()) + 300,
+            "iat": int(time.time()),
+            "name": "Test User",
+            "email": "test@ubc.ca",
+            "https://purl.imsglobal.org/spec/lti/claim/context": {
+                "id": "course-123",
+                "label": "FRST101",
+                "title": "Intro to Forestry",
+            },
+            "https://purl.imsglobal.org/spec/lti/claim/roles": [
+                "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"
+            ],
+            "https://purl.imsglobal.org/spec/lti/claim/deployment_id": "1:test-deployment",
+        }
+        id_token = pyjwt.encode(claims, private_key, algorithm="RS256")
+
+        # Step 3: Mock JWKS client to return our test key
+        mock_jwks_client = Mock()
+        mock_signing_key = Mock()
+        mock_signing_key.key = private_key.public_key()
+        mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+        with patch(
+            "src.lti.jwt_validation.get_jwks_client",
+            return_value=mock_jwks_client,
+        ):
+            response = client.post(
+                "/lti/launch",
+                data={"id_token": id_token, "state": state},
+            )
+
+        assert response.status_code == 403
+        # New response is the instructor UI (not the old placeholder page)
+        assert "Access Restricted" in response.text
+        assert "Intro to Forestry" not in response.text
+        assert "Test User" not in response.text
+        assert "session-token" not in response.text
+
+    def test_launch_valid_flow_TA_user(self, client, mock_table):
+        """Full login-to-launch flow with a real JWT."""
+        # Step 1: OIDC login to get state
+        login_resp = client.get(
+            "/lti/login",
+            params={
+                "iss": "https://canvas.test.instructure.com",
+                "login_hint": "user123",
+                "target_link_uri": "https://test.execute-api.ca-central-1.amazonaws.com/dev/lti/launch",
+            },
+            follow_redirects=False,
+        )
+        location = login_resp.headers["location"]
+        # Extract state and nonce from redirect URL
+        from urllib.parse import parse_qs, urlparse
+
+        query = parse_qs(urlparse(location).query)
+        state = query["state"][0]
+        nonce = query["nonce"][0]
+
+        # Step 2: Create a signed JWT (simulating Canvas)
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        claims = {
+            "iss": "https://canvas.test.instructure.com",
+            "aud": "10000000000001",
+            "sub": "user-456",
+            "nonce": nonce,
+            "exp": int(time.time()) + 300,
+            "iat": int(time.time()),
+            "name": "Test User",
+            "email": "test@ubc.ca",
+            "https://purl.imsglobal.org/spec/lti/claim/context": {
+                "id": "course-123",
+                "label": "FRST101",
+                "title": "Intro to Forestry",
+            },
+            "https://purl.imsglobal.org/spec/lti/claim/roles": [
+                "http://purl.imsglobal.org/vocab/lis/v2/membership#TeachingAssistant"
+            ],
+            "https://purl.imsglobal.org/spec/lti/claim/deployment_id": "1:test-deployment",
+        }
+        id_token = pyjwt.encode(claims, private_key, algorithm="RS256")
+
+        # Step 3: Mock JWKS client to return our test key
+        mock_jwks_client = Mock()
+        mock_signing_key = Mock()
+        mock_signing_key.key = private_key.public_key()
+        mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+        with patch(
+            "src.lti.jwt_validation.get_jwks_client",
+            return_value=mock_jwks_client,
+        ):
+            response = client.post(
+                "/lti/launch",
+                data={"id_token": id_token, "state": state},
+            )
+
+        assert response.status_code == 200
+        # New response is the instructor UI (not the old placeholder page)
+        assert "Test User" in response.text
+        assert "Intro to Forestry" in response.text
+        assert "TeachingAssistant" in response.text
+        # Session token is embedded in the UI
+        assert "session-token" in response.text
+
+    def test_launch_valid_flow_admin_user(self, client, mock_table):
+        """Full login-to-launch flow with a real JWT."""
+        # Step 1: OIDC login to get state
+        login_resp = client.get(
+            "/lti/login",
+            params={
+                "iss": "https://canvas.test.instructure.com",
+                "login_hint": "user123",
+                "target_link_uri": "https://test.execute-api.ca-central-1.amazonaws.com/dev/lti/launch",
+            },
+            follow_redirects=False,
+        )
+        location = login_resp.headers["location"]
+        # Extract state and nonce from redirect URL
+        from urllib.parse import parse_qs, urlparse
+
+        query = parse_qs(urlparse(location).query)
+        state = query["state"][0]
+        nonce = query["nonce"][0]
+
+        # Step 2: Create a signed JWT (simulating Canvas)
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        claims = {
+            "iss": "https://canvas.test.instructure.com",
+            "aud": "10000000000001",
+            "sub": "user-456",
+            "nonce": nonce,
+            "exp": int(time.time()) + 300,
+            "iat": int(time.time()),
+            "name": "Test User",
+            "email": "test@ubc.ca",
+            "https://purl.imsglobal.org/spec/lti/claim/context": {
+                "id": "course-123",
+                "label": "FRST101",
+                "title": "Intro to Forestry",
+            },
+            "https://purl.imsglobal.org/spec/lti/claim/roles": [
+                "http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator"
+            ],
+            "https://purl.imsglobal.org/spec/lti/claim/deployment_id": "1:test-deployment",
+        }
+        id_token = pyjwt.encode(claims, private_key, algorithm="RS256")
+
+        # Step 3: Mock JWKS client to return our test key
+        mock_jwks_client = Mock()
+        mock_signing_key = Mock()
+        mock_signing_key.key = private_key.public_key()
+        mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+        with patch(
+            "src.lti.jwt_validation.get_jwks_client",
+            return_value=mock_jwks_client,
+        ):
+            response = client.post(
+                "/lti/launch",
+                data={"id_token": id_token, "state": state},
+            )
+
+        assert response.status_code == 200
+        # New response is the instructor UI (not the old placeholder page)
+        assert "Test User" in response.text
+        assert "Intro to Forestry" in response.text
+        assert "Administrator" in response.text
+        # Session token is embedded in the UI
+        assert "session-token" in response.text
+
 
 class TestPassback:
     def test_passback_uses_rest_path_when_job_has_quiz_id(

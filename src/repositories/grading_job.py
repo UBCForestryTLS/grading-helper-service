@@ -112,3 +112,29 @@ class GradingJobRepository:
             ExpressionAttributeNames=expr_names,
         )
         return self.get(job_id)
+
+    def cancel(self, job_id: UUID) -> GradingJob | None:
+        """Cancel a job only if it is PENDING or PROCESSING."""
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            self.table.update_item(
+                Key={"pk": f"JOB#{job_id}", "sk": "METADATA"},
+                UpdateExpression=(
+                    "SET #status = :cancelled, GSI2PK = :gsi2pk, updated_at = :updated_at"
+                ),
+                ConditionExpression=(
+                    "(#status = :pending OR #status = :processing)"
+                    " AND attribute_exists(pk)"
+                ),
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":cancelled": str(JobStatus.CANCELLED),
+                    ":gsi2pk": f"STATUS#{JobStatus.CANCELLED}",
+                    ":updated_at": now,
+                    ":pending": str(JobStatus.PENDING),
+                    ":processing": str(JobStatus.PROCESSING),
+                },
+            )
+            return self.get(job_id)
+        except self.table.meta.client.exceptions.ConditionalCheckFailedException:
+            return None

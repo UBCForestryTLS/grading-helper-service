@@ -1,6 +1,7 @@
 # Environment variables (sensitive keys)
 .env
 .env.local
+env.json
 
 # Python
 __pycache__/
@@ -35,4 +36,9 @@ CLAUDE.md
 
 # AWS SAM
 .aws-sam/
+sam.zip
 samconfig.toml
+sam-install
+*.sln
+
+requirements.txt

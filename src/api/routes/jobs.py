@@ -106,6 +106,34 @@ def grade_job(
     return job_repo.get(job_id)
 
 
+@router.post("/{job_id}/cancel", response_model=GradingJob)
+def cancel_job(
+    job_id: UUID,
+    session: SessionUser = Depends(require_session),
+) -> GradingJob:
+    """Cancel a pending or processing grading job."""
+    job_repo = _get_job_repo()
+    job = job_repo.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.course_id != session.course_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if job.status not in (JobStatus.PENDING, JobStatus.PROCESSING):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job is {job.status}, must be PENDING or PROCESSING to cancel",
+        )
+
+    cancelled = job_repo.cancel(job_id)
+    if cancelled is None:
+        job = job_repo.get(job_id)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job could not be cancelled (current status: {job.status if job else 'unknown'})",
+        )
+    return cancelled
+
+
 @router.get("/{job_id}/submissions", response_model=list[Submission])
 def list_submissions(
     job_id: UUID,

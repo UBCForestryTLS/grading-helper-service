@@ -52,6 +52,11 @@ class GradingService:
                 executor.submit(self._grade_submission, sub): sub for sub in submissions
             }
             for future in as_completed(futures):
+                current_job = self.job_repo.get(job_id)
+                if current_job and current_job.status == JobStatus.CANCELLED:
+                    for f in futures:
+                        f.cancel()
+                    return
                 sub = futures[future]
                 try:
                     future.result()

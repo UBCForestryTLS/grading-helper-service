@@ -15,6 +15,7 @@ dependencies = [
     "pyjwt>=2.11.0",
     "cryptography>=46.0.4",
     "python-multipart>=0.0.22",
+    "pre-commit>=4.5.0",
 ]
 
 [dependency-groups]
