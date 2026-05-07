@@ -438,7 +438,7 @@ def render_instructor_ui(
             clearInterval(pollTimer);
             setStep(3);
             document.getElementById('btn-cancel-grading').style.display = 'none';
-			document.getElementById('btn-start-grading').disabled = false;
+			document.getElementById('btn-start-grading').disabled = true;
             await showResults();
           }} else if (job.status === 'FAILED') {{
             clearInterval(pollTimer);
