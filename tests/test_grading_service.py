@@ -120,6 +120,84 @@ class TestGradeJob:
         assert updated_job.status == JobStatus.FAILED
         assert "Bedrock error" in updated_job.error_message
 
+    def test_cancel_pending_job(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="To Cancel")
+        job_repo.create(job)
+
+        result = job_repo.cancel(job.job_id)
+
+        assert result is not None
+        assert result.status == JobStatus.CANCELLED
+        fetched = job_repo.get(job.job_id)
+        assert fetched.status == JobStatus.CANCELLED
+
+    def test_cancel_processing_job(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Processing Cancel")
+        job_repo.create(job)
+        job_repo.update_status(job.job_id, JobStatus.PROCESSING)
+
+        result = job_repo.cancel(job.job_id)
+
+        assert result is not None
+        assert result.status == JobStatus.CANCELLED
+
+    def test_cancel_completed_job_returns_none(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Already Done")
+        job_repo.create(job)
+        job_repo.update_status(job.job_id, JobStatus.COMPLETED)
+
+        result = job_repo.cancel(job.job_id)
+
+        assert result is None
+        fetched = job_repo.get(job.job_id)
+        assert fetched.status == JobStatus.COMPLETED
+
+    def test_cancel_nonexistent_job_returns_none(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+
+        result = job_repo.cancel(uuid4())
+
+        assert result is None
+
+    def test_cancel_stops_grading_loop(self, dynamodb_table):
+        """Cancelling mid-flight causes grade_job to exit without marking COMPLETED."""
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Cancel Mid Grade")
+        job_repo.create(job)
+
+        sub1 = _make_submission(job_id=job.job_id)
+        sub2 = _make_submission(job_id=job.job_id)
+        sub_repo.batch_create([sub1, sub2])
+
+        call_count = 0
+
+        def side_effect(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                job_repo.cancel(job.job_id)
+                return _bedrock_response(3.0, "OK")
+            return _bedrock_response(5.0, "Great")
+
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.side_effect = side_effect
+
+        service = GradingService(
+            job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
+        )
+        service.grade_job(job.job_id)
+
+        updated_job = job_repo.get(job.job_id)
+        assert updated_job.status == JobStatus.CANCELLED
+
 
 class TestBuildPrompt:
     def test_build_prompt_contains_question_info(self):
