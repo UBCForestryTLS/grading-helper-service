@@ -123,7 +123,7 @@ Cancel a job with status `PENDING` or `PROCESSING`
 - **Errors:** 404 if job not found, 403 if job belongs to a different course, 409 if job is already COMPLETED, FAILED, or CANCELLED
 - The job status transitions: `PENDING` → `CANCELLED` or `PROCESSING` → `CANCELLED`
 
-**Response:** Updated `GradingJob` object with `"status": "CANCELELD"`
+**Response:** Updated `GradingJob` object with `"status": "CANCELLED"`
 
 ### `GET /jobs/{job_id}/submissions`
 
