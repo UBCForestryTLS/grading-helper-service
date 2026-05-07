@@ -22,24 +22,16 @@ certifi==2025.10.5
     #   httpx
 cffi==2.0.0 ; platform_python_implementation != 'PyPy'
     # via cryptography
-cfgv==3.5.0
-    # via pre-commit
 cryptography==46.0.4
     # via grading-helper-service
-distlib==0.4.0
-    # via virtualenv
 fastapi==0.128.3
     # via grading-helper-service
-filelock==3.20.0
-    # via virtualenv
 h11==0.16.0
     # via httpcore
 httpcore==1.0.9
     # via httpx
 httpx==0.28.1
     # via grading-helper-service
-identify==2.6.15
-    # via pre-commit
 idna==3.11
     # via
     #   anyio
@@ -50,12 +42,6 @@ jmespath==1.1.0
     #   boto3
     #   botocore
 mangum==0.21.0
-    # via grading-helper-service
-nodeenv==1.9.1
-    # via pre-commit
-platformdirs==4.5.0
-    # via virtualenv
-pre-commit==4.5.0
     # via grading-helper-service
 pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
@@ -76,8 +62,6 @@ python-dotenv==1.2.1
     # via pydantic-settings
 python-multipart==0.0.22
     # via grading-helper-service
-pyyaml==6.0.3
-    # via pre-commit
 s3transfer==0.16.0
     # via boto3
 six==1.17.0
@@ -99,5 +83,3 @@ typing-inspection==0.4.2
     #   pydantic-settings
 urllib3==2.5.0
     # via botocore
-virtualenv==20.35.4
-    # via pre-commit

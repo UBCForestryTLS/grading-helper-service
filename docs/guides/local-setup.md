@@ -74,7 +74,7 @@ The API will be available at `http://localhost:3000`. Note that LTI endpoints wo
 
 ### `uv sync` fails with Python version error
 
-Make sure you have Python 3.13 installed. Check with `python3.12 --version`. If you're using pyenv:
+Make sure you have Python 3.13 installed. Check with `python3.13 --version`. If you're using pyenv:
 
 ```bash
 pyenv install 3.13

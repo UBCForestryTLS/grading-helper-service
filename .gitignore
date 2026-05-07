@@ -36,7 +36,4 @@ CLAUDE.md
 
 # AWS SAM
 .aws-sam/
-sam.zip
 samconfig.toml
-sam-install
-*.sln
