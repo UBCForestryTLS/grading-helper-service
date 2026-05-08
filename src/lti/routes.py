@@ -1,6 +1,6 @@
 """LTI 1.3 endpoints: OIDC login, launch, JWKS, tool configuration, and Canvas integration."""
 
-import logging
+# import logging
 from html import escape
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -8,13 +8,14 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from src.auth.session import SessionUser, create_session_token, require_session
 from src.core.config import get_settings
+from src.core.observability import logger, metrics, MetricUnit
 from src.lti.jwt_validation import validate_launch_token
 from src.lti.key_manager import get_public_jwk
 from src.lti.launch_store import LaunchStore
 from src.lti.state import LTIStateStore
 from src.lti.ui import render_instructor_ui
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lti", tags=["lti"])
 jwks_router = APIRouter(tags=["lti"])
@@ -36,6 +37,9 @@ async def lti_login(request: Request):
     settings = get_settings()
 
     iss = params.get("iss", "")
+
+    logger.info("LTI login initiated", iss=iss)
+
     if iss != settings.lti_iss:
         raise HTTPException(status_code=400, detail=f"Unknown issuer: {iss}")
 
@@ -104,6 +108,14 @@ async def lti_launch(request: Request):
     # Build roles list, only allowing expected roles
     role_names = [r.split("#")[-1] for r in roles_raw]
     if not any(role in ALLOWED_ROLES for role in role_names):
+        logger.warning(
+            "Access blocked: unauthorized role",
+            user_id=claims.get("sub"),
+            roles=role_names,
+        )
+        metrics.add_metric(
+            name="UnauthorizedRoleAccess", unit=MetricUnit.Count, value=1
+        )
         return HTMLResponse(
             content="""
         <html>
@@ -133,6 +145,8 @@ async def lti_launch(request: Request):
         course_title=context.get("title", ""),
         roles=[escape(r) for r in role_names if r in ALLOWED_ROLES],
     )
+    logger.info("LTI launch successful", user_id=claims.get("sub"), course_id=course_id)
+    metrics.add_metric(name="LTILaunchSuccess", unit=MetricUnit.Count, value=1)
     return HTMLResponse(content=html)
 
 
@@ -254,10 +268,9 @@ def list_lti_quizzes(
         )
 
     logger.info(
-        "list_lti_quizzes: user=%s, course=%s, token_prefix=%s",
-        session.canvas_user_id,
-        session.course_id,
-        token[:10] + "..." if token else "None",
+        "Listing quizzes",
+        canvas_user_id=session.canvas_user_id,
+        course_id=session.course_id,
     )
 
     try:
@@ -266,10 +279,10 @@ def list_lti_quizzes(
     except HTTPStatusError as e:
         if e.response.status_code == 401:
             logger.warning(
-                "Canvas 401: user=%s, course=%s, response=%s",
-                session.canvas_user_id,
-                session.course_id,
-                e.response.text[:500],
+                "Canvas token rejected",
+                canvas_user_id=session.canvas_user_id,
+                course_id=session.course_id,
+                response_text=e.response.text[:200],
             )
             delete_canvas_token(session.course_id, session.canvas_user_id)
             raise HTTPException(
@@ -322,13 +335,11 @@ def lti_create_job(
                 )
             assignment_id = quiz.get("assignment_id")
             logger.info(
-                "lti_create_job: quiz=%s, assignment_id=%s, quiz_type=%s, "
-                "course_id=%s, canvas_user_id=%s",
-                body.quiz_id,
-                assignment_id,
-                quiz.get("quiz_type"),
-                session.course_id,
-                session.canvas_user_id,
+                "Creating job",
+                quiz_id=body.quiz_id,
+                assignment_id=assignment_id,
+                course_id=session.course_id,
+                canvas_user_id=session.canvas_user_id,
             )
 
             questions = canvas_client.get_quiz_questions(
@@ -357,10 +368,10 @@ def lti_create_job(
 
             if not answers_by_user and quiz_submissions:
                 logger.warning(
-                    "No student answers found for %d quiz submissions. "
-                    "Ensure 'Allow Include Parameters' is enabled on the "
-                    "Canvas API Developer Key.",
-                    len(quiz_submissions),
+                    "No student answers found",
+                    quiz_submission_count=len(quiz_submissions),
+                    assignment_id=assignment_id,
+                    course_id=session.course_id,
                 )
     except HTTPStatusError as e:
         if e.response.status_code == 401:
@@ -504,11 +515,9 @@ async def oauth_callback(
     import time
 
     logger.info(
-        "OAuth token exchange success: user=%s, course=%s, expires_in=%s, token_prefix=%s",
-        launch["canvas_user_id"],
-        launch["course_id"],
-        token_data.get("expires_in"),
-        token_data.get("access_token", "")[:10] + "...",
+        "OAuth authorization successful",
+        canvas_user_id=launch["canvas_user_id"],
+        course_id=launch["course_id"],
     )
 
     expires_at = int(time.time()) + token_data.get("expires_in", 3600)
