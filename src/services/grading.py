@@ -2,7 +2,6 @@
 
 import json
 
-# import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from uuid import UUID
@@ -14,7 +13,6 @@ from src.models.grading_job import JobStatus
 from src.repositories.grading_job import GradingJobRepository
 from src.repositories.submission import SubmissionRepository
 
-# logger = logging.getLogger(__name__)
 
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
 MAX_WORKERS = 10

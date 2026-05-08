@@ -1,6 +1,5 @@
 """LTI 1.3 endpoints: OIDC login, launch, JWKS, tool configuration, and Canvas integration."""
 
-# import logging
 from html import escape
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -15,7 +14,6 @@ from src.lti.launch_store import LaunchStore
 from src.lti.state import LTIStateStore
 from src.lti.ui import render_instructor_ui
 
-# logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lti", tags=["lti"])
 jwks_router = APIRouter(tags=["lti"])
