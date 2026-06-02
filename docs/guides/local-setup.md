@@ -84,7 +84,7 @@ pyenv local 3.13
 ### `sam build` fails
 
 - Make sure Docker is running
-- The Makefile hardcodes the pip path (`/opt/homebrew/bin/python3.13`). If your Python is installed elsewhere, update the Makefile or create a symlink.
+- The Makefile hardcodes the pip path (`/opt/homebrew/bin/python3.12`). If your Python is installed elsewhere, update the Makefile or create a symlink.
 
 ### Tests fail with import errors
 

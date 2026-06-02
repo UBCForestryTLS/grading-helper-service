@@ -1,6 +1,7 @@
 # Environment variables (sensitive keys)
 .env
 .env.local
+env.json
 
 # Python
 __pycache__/
