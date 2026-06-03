@@ -613,7 +613,7 @@ def render_instructor_ui(
             'FAILED': 'badge-failed',
             'PROCESSING': 'badge-processing',
             'PENDING': 'badge-pending',
-            'CANCELED': 'badge-cancelled',
+            'CANCELLED': 'badge-cancelled',
           }}[job.status] || 'badge-pending';
           badge.classList.add(statusClass);
           badge.textContent = job.status;
