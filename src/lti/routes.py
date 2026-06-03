@@ -301,6 +301,7 @@ def lti_create_job(
     from src.lti.canvas_api import CanvasAPIClient
     from src.lti.oauth import delete_canvas_token, get_canvas_token
     from src.services.ingestion import IngestionService
+    from src.repositories.grading_job import GradingJobRepository
 
     settings = get_settings()
     if not settings.api_canvas_url:
@@ -388,6 +389,14 @@ def lti_create_job(
             status_code=502, detail=f"Failed to fetch quiz data from Canvas: {e}"
         )
 
+    job_repository = GradingJobRepository()
+    if job_repository.completed_quiz_run(session.course_id, body.quiz_id):
+        logger.info(
+            "Re-run detected for quiz",
+            course_id=session.course_id,
+            quiz_id=body.quiz_id,
+        )
+        metrics.add_metric(name="GradingJobRerun", unit=MetricUnit.Count, value=1)
     service = IngestionService()
     try:
         job = service.ingest_from_canvas_api(
