@@ -34,6 +34,8 @@ site/
 
 CLAUDE.md
 
+*.pem
+
 # AWS SAM
 .aws-sam/
 samconfig.toml
