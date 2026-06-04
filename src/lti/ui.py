@@ -448,6 +448,8 @@ def render_instructor_ui(
                 clearInterval(pollTimer);
                 document.getElementById('grading-status').textContent = 'Grading cancelled.';
                 document.getElementById('btn-cancel-grading').style.display = 'none';
+                document.getElementById('btn-cancel-grading').disabled = false;
+                document.getElementById('section-results').classList.add('hidden');
                 document.getElementById('btn-start-grading').disabled = false;
                 document.getElementById('section-grading').classList.add('hidden');
                 setStep(1);
