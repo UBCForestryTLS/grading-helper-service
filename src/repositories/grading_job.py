@@ -138,3 +138,10 @@ class GradingJobRepository:
             return self.get(job_id)
         except self.table.meta.client.exceptions.ConditionalCheckFailedException:
             return None
+
+    def completed_quiz_run(self, course_id: str, quiz_id: str) -> GradingJob | None:
+        jobs = self.list_by_course(course_id)
+        for job in jobs:
+            if job.quiz_id == quiz_id and job.status == JobStatus.COMPLETED:
+                return job
+        return None
