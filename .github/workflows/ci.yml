@@ -57,7 +57,8 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && needs.changes.outputs.code == 'true'
+    #if: github.event_name == 'push' && needs.changes.outputs.code == 'true'
+    if: false
     needs: [test, changes]
     environment: production
     steps:
