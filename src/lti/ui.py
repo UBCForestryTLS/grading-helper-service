@@ -149,8 +149,6 @@ def render_instructor_ui(
           Start AI Grading
         </button>
 		<button id="btn-cancel-grading" style="display:none;">Cancel Grading</button>
-
-<div id="grading-status"></div>
       </div>
       <div id="auth-prompt" class="hidden">
         <p>Canvas access not authorized yet.</p>
@@ -447,17 +445,16 @@ def render_instructor_ui(
               document.getElementById('btn-cancel-grading').style.display = 'none';
 			  document.getElementById('btn-start-grading').disabled = false;
           }} else if (job.status === 'CANCELLED') {{
-				clearInterval(pollTimer);
-
-				document.getElementById('grading-status').textContent =
-					'Grading cancelled.';
-
-				document.getElementById('btn-cancel-grading').style.display = 'none';
-				document.getElementById('btn-start-grading').disabled = false;
-
-				setStep(1);
+                clearInterval(pollTimer);
+				currentJobId = null;
+                document.getElementById('grading-status').textContent = 'Grading cancelled.';
+                document.getElementById('btn-cancel-grading').style.display = 'none';
+                document.getElementById('btn-cancel-grading').disabled = false;
+                document.getElementById('section-results').classList.add('hidden');
+                document.getElementById('btn-start-grading').disabled = false;
+                document.getElementById('section-grading').classList.add('hidden');
+                setStep(1);
 		  }}
-
         }} catch (e) {{
           // Keep polling on transient errors
         }}
@@ -613,7 +610,7 @@ def render_instructor_ui(
             'FAILED': 'badge-failed',
             'PROCESSING': 'badge-processing',
             'PENDING': 'badge-pending',
-            'CANCELED': 'badge-cancelled',
+            'CANCELLED': 'badge-cancelled',
           }}[job.status] || 'badge-pending';
           badge.classList.add(statusClass);
           badge.textContent = job.status;
@@ -657,7 +654,27 @@ def render_instructor_ui(
       document.getElementById('btn-back-history').classList.remove('hidden');
       await showResults();
     }}
+document.getElementById('btn-cancel-grading').addEventListener('click', async () => {{
+  if (!currentJobId) return;
 
+  document.getElementById('btn-cancel-grading').disabled = true;
+  document.getElementById('grading-status').textContent = 'Cancelling...';
+
+  try {{
+    const resp = await fetch(BASE_URL + '/jobs/' + currentJobId + '/cancel', {{
+      method: 'POST',
+      headers: authHeaders(),
+    }});
+    if (!resp.ok) {{
+      document.getElementById('grading-status').textContent = await getErrorMessage(resp);
+      document.getElementById('btn-cancel-grading').disabled = false;
+    }}
+    // If successful, do nothing — the poller sees CANCELLED and resets the UI
+  }} catch (e) {{
+    document.getElementById('grading-status').textContent = 'Failed to cancel. Please try again.';
+    document.getElementById('btn-cancel-grading').disabled = false;
+  }}
+}});
     function backToHistory() {{
       // Reset the Grade tab so a future visit starts fresh, then switch back
       // to the Past Jobs list view.
