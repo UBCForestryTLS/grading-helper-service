@@ -235,6 +235,9 @@ def render_instructor_ui(
     const SESSION_TOKEN = document.querySelector('meta[name="session-token"]').getAttribute('content');
     const BASE_URL = '{safe_base_url}';
     const LAUNCH_ID = '{safe_launch_id}';
+	const USER_ROLES = {list(roles)};
+	const ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"];
+	const IS_AUTHORIZED = USER_ROLES.some(r => ALLOWED_ROLES.includes(r));	
     let currentJobId = null;
     let pollTimer = null;
     let cameFromHistory = false;
@@ -324,6 +327,8 @@ def render_instructor_ui(
     // If Canvas returns 401 the instructor needs to OAuth-authorize the tool;
     // we surface the authorize link instead of an error.
     async function loadQuizzes() {{
+		if (!IS_AUTHORIZED) return;
+
       document.getElementById('btn-load-quizzes').disabled = true;
       document.getElementById('quiz-error').classList.add('hidden');
       document.getElementById('auth-prompt').classList.add('hidden');
@@ -694,6 +699,11 @@ def render_instructor_ui(
         document.getElementById('btn-passback').disabled = false;
       }}
     }}
+
+	if (!IS_AUTHORIZED) {{
+		document.getElementById('tab-btn-grade').style.display = 'none';
+		document.getElementById('tab-grade').innerHTML = '<div class="card"><p>You do not have permission to access this tool.</p></div>';
+	}}
     
   </script>
 </body>
