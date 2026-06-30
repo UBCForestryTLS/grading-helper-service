@@ -424,7 +424,7 @@ class TestLTILaunch:
 
 class TestPassback:
     def test_passback_uses_rest_path_when_job_has_quiz_id(
-        self, client, mock_table, session_token
+        self, client, mock_table, session_token, instructor_launch
     ):
         from uuid import uuid4
         from unittest.mock import patch
@@ -466,7 +466,7 @@ class TestPassback:
         assert call_kwargs["canvas_token"] == "canvas-tok"
 
     def test_passback_returns_401_when_no_canvas_token(
-        self, client, mock_table, session_token
+        self, client, mock_table, session_token, instructor_launch
     ):
         from uuid import uuid4
         from unittest.mock import patch

@@ -6,7 +6,12 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
-from src.auth.session import SessionUser, create_session_token, require_session
+from src.auth.session import (
+    SessionUser,
+    create_session_token,
+    ALLOWED_ROLES,
+    require_instructor,
+)
 from src.core.config import get_settings
 from src.lti.jwt_validation import validate_launch_token
 from src.lti.key_manager import get_public_jwk
@@ -98,8 +103,6 @@ async def lti_launch(request: Request):
     context = claims.get("https://purl.imsglobal.org/spec/lti/claim/context", {})
     custom = claims.get("https://purl.imsglobal.org/spec/lti/claim/custom", {})
     roles_raw = claims.get("https://purl.imsglobal.org/spec/lti/claim/roles", [])
-
-    ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"]
 
     # Build roles list, only allowing expected roles
     role_names = [r.split("#")[-1] for r in roles_raw]
@@ -227,7 +230,7 @@ class PassbackRequest(BaseModel):
 @router.get("/quizzes")
 def list_lti_quizzes(
     launch_id: str = Query(...),
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ):
     """List quizzes for the course from Canvas REST API.
 
@@ -282,7 +285,7 @@ def list_lti_quizzes(
 @router.post("/jobs")
 def lti_create_job(
     body: LTIJobCreate,
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ):
     """Create a grading job by fetching quiz data from Canvas and ingesting it."""
     from httpx import HTTPStatusError
@@ -399,7 +402,7 @@ def lti_create_job(
 def lti_passback(
     job_id: str,
     body: PassbackRequest,
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ):
     """Push AI grades for a completed job back to Canvas.
 
@@ -445,6 +448,10 @@ async def oauth_authorize(launch_id: str = Query(...)):
     """Redirect instructor to Canvas OAuth2 authorization page."""
     from src.lti.oauth import build_auth_url
 
+    launch = LaunchStore().get(launch_id)
+    if launch is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired launch")
+
     settings = get_settings()
     if not settings.api_canvas_url or not settings.api_client_id:
         raise HTTPException(status_code=503, detail="Canvas OAuth not configured")
@@ -479,9 +486,8 @@ async def oauth_callback(
         )
 
     settings = get_settings()
-    launch_id = state
 
-    launch = LaunchStore().get(launch_id)
+    launch = LaunchStore().get(state)
     if launch is None:
         raise HTTPException(
             status_code=400, detail="Invalid OAuth state (launch not found)"

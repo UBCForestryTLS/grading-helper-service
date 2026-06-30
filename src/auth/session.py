@@ -19,6 +19,9 @@ class SessionUser(BaseModel):
     canvas_user_id: str
 
 
+ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"]
+
+
 @functools.lru_cache
 def _get_public_key():
     """Load RSA public key from private key for JWT verification."""
@@ -84,3 +87,24 @@ def require_session(
         raise HTTPException(
             status_code=401, detail=f"Invalid session token: missing claim {e}"
         )
+
+
+def require_instructor(
+    session: SessionUser = Depends(require_session),
+) -> SessionUser:
+    from src.lti.launch_store import LaunchStore
+
+    launch = LaunchStore().get(session.launch_id)
+    if launch is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Launch context expired. Please re-open the tool from Canvas.",
+        )
+    roles_raw = launch.get("roles", [])
+    role_names = [r.split("#")[-1] for r in roles_raw]
+    if not any(role in ALLOWED_ROLES for role in role_names):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to perform this action.",
+        )
+    return session

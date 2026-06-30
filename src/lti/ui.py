@@ -571,6 +571,7 @@ def render_instructor_ui(
     // history table, sorted newest-first. Only COMPLETED jobs get a
     // "View Results" button.
     async function loadPastJobs() {{
+	  if (!IS_AUTHORIZED) return;
       const tbody = document.getElementById('history-tbody');
       const emptyMsg = document.getElementById('history-empty');
       const errorEl = document.getElementById('history-error');
@@ -647,6 +648,7 @@ def render_instructor_ui(
     // and grading-progress sections, surfaces the "Back to Past Jobs" link,
     // and reuses showResults() to render the table.
     async function viewJobResults(jobId, jobName) {{
+	  
       currentJobId = jobId;
       cameFromHistory = true;
 
