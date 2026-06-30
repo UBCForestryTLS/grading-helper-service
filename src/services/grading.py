@@ -1,18 +1,18 @@
 """Service for AI grading of submissions via AWS Bedrock."""
 
 import json
-import logging
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from uuid import UUID
 
 from src.core.aws import get_bedrock_runtime_client
 from src.core.config import get_settings
+from src.core.observability import logger, metrics, MetricUnit
 from src.models.grading_job import JobStatus
 from src.repositories.grading_job import GradingJobRepository
 from src.repositories.submission import SubmissionRepository
 
-logger = logging.getLogger(__name__)
 
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
 MAX_WORKERS = 10
@@ -38,13 +38,18 @@ class GradingService:
         return self._bedrock_client
 
     def grade_job(self, job_id: UUID) -> None:
+        logger.info("Starting grading job", job_id=str(job_id))
         self.job_repo.update_status(job_id, JobStatus.PROCESSING)
 
         submissions = self.sub_repo.list_by_job(job_id)
         if not submissions:
+            logger.info("No submissions found for job", job_id=str(job_id))
             self.job_repo.update_status(job_id, JobStatus.COMPLETED)
             return
 
+        logger.info(
+            "Grading submissions for job", job_id=str(job_id), count=len(submissions)
+        )
         errors: list[str] = []
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
@@ -54,6 +59,7 @@ class GradingService:
             for future in as_completed(futures):
                 current_job = self.job_repo.get(job_id)
                 if current_job and current_job.status == JobStatus.CANCELLED:
+                    logger.info("Job cancelled during grading", job_id=str(job_id))
                     for f in futures:
                         f.cancel()
                     return
@@ -61,16 +67,32 @@ class GradingService:
                 try:
                     future.result()
                 except Exception as e:
+                    logger.error(
+                        "Grading submission failed",
+                        job_id=str(job_id),
+                        submission_id=str(sub.submission_id),
+                        error=str(e),
+                    )
                     errors.append(f"Submission {sub.submission_id}: {e}")
 
         if errors:
+            logger.warning(
+                "Grading completed with errors",
+                job_id=str(job_id),
+                error_count=len(errors),
+            )
             self.job_repo.update_status(
                 job_id,
                 JobStatus.FAILED,
                 error_message="; ".join(errors),
             )
+            metrics.add_metric(name="GradingJobFailed", unit=MetricUnit.Count, value=1)
         else:
+            logger.info("Grading completed successfully", job_id=str(job_id))
             self.job_repo.update_status(job_id, JobStatus.COMPLETED)
+            metrics.add_metric(
+                name="GradingJobCompleted", unit=MetricUnit.Count, value=1
+            )
 
     def _grade_submission(self, sub) -> None:
         prompt = self._build_prompt(sub)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
 
 from src.auth.session import SessionUser, require_instructor
+from src.core.observability import logger, metrics, MetricUnit
 from src.models.grading_job import GradingJob, GradingJobCreate, JobStatus
 from src.models.submission import Submission
 from src.repositories.grading_job import GradingJobRepository
@@ -38,6 +39,9 @@ def create_job(
     session: SessionUser = Depends(require_instructor),
 ) -> GradingJob:
     """Create a new grading job from Canvas quiz export data."""
+
+    logger.info("Creating job", course_id=session.course_id, quiz_id=str(body.quiz_id))
+
     if body.course_id != session.course_id:
         raise HTTPException(
             status_code=403,
@@ -61,6 +65,7 @@ def get_job(
     session: SessionUser = Depends(require_instructor),
 ) -> GradingJob:
     """Get a grading job by ID."""
+    logger.info("Getting job", job_id=str(job_id), course_id=session.course_id)
     repo = _get_job_repo()
     job = repo.get(job_id)
     if job is None:
@@ -76,6 +81,7 @@ def list_jobs(
     session: SessionUser = Depends(require_instructor),
 ) -> list[GradingJob]:
     """List grading jobs for the session's course, optionally filtered by status."""
+    logger.info("Listing jobs", course_id=session.course_id, status=status)
     repo = _get_job_repo()
     jobs = repo.list_by_course(session.course_id)
     if status is not None:
@@ -89,6 +95,7 @@ def grade_job(
     session: SessionUser = Depends(require_instructor),
 ) -> GradingJob:
     """Start AI grading for a job's submissions."""
+    logger.info("Starting grading", job_id=str(job_id), course_id=session.course_id)
     job_repo = _get_job_repo()
     job = job_repo.get(job_id)
     if job is None:
@@ -102,6 +109,7 @@ def grade_job(
         )
 
     service = _get_grading_service()
+    metrics.add_metric(name="GradingJobStarted", unit=MetricUnit.Count, value=1)
     service.grade_job(job_id)
     return job_repo.get(job_id)
 
@@ -112,6 +120,7 @@ def cancel_job(
     session: SessionUser = Depends(require_instructor),
 ) -> GradingJob:
     """Cancel a pending or processing grading job."""
+    logger.info("Cancelling job", job_id=str(job_id), course_id=session.course_id)
     job_repo = _get_job_repo()
     job = job_repo.get(job_id)
     if job is None:
@@ -131,6 +140,8 @@ def cancel_job(
             status_code=409,
             detail=f"Job could not be cancelled (current status: {job.status if job else 'unknown'})",
         )
+    logger.info("Job cancelled", job_id=str(job_id))
+    metrics.add_metric(name="GradingJobCancelled", unit=MetricUnit.Count, value=1)
     return cancelled
 
 
@@ -140,6 +151,9 @@ def list_submissions(
     session: SessionUser = Depends(require_instructor),
 ) -> list[Submission]:
     """List all submissions for a grading job."""
+    logger.info(
+        "Listing submissions for job", job_id=str(job_id), course_id=session.course_id
+    )
     job_repo = _get_job_repo()
     job = job_repo.get(job_id)
     if job is None:

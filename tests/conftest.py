@@ -2,6 +2,11 @@
 
 import os
 
+# Powertools config for tests
+os.environ.setdefault("POWERTOOLS_SERVICE_NAME", "grading-helper-test")
+os.environ.setdefault("POWERTOOLS_LOG_LEVEL", "WARNING")
+os.environ.setdefault("POWERTOOLS_DEV", "true")
+
 import boto3
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
