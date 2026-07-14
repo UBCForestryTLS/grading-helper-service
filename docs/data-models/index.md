@@ -62,6 +62,7 @@ erDiagram
         string ags_lineitem_url
         string ags_lineitems_url
         string nrps_context_memberships_url
+        list roles
         int ttl
     }
 
@@ -97,6 +98,7 @@ erDiagram
 | Validate LTI state | `pk=LTI_STATE#{state}`, `sk=STATE` (atomic delete) | `LTIStateStore.validate()` |
 | Get launch context | `pk=LAUNCH#{id}`, `sk=LAUNCH` | `LaunchStore.get()` |
 | Get Canvas OAuth token | `pk=CANVAS_TOKEN#{user}`, `sk=COURSE#{course}` | `get_canvas_token()` |
+| Check instructor role | `pk=LAUNCH#{launch_id}`, `sk=LAUNCH` | `require_instructor()` |
 
 ## GSI Design
 

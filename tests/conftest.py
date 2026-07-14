@@ -29,40 +29,44 @@ def dynamodb_table(aws_credentials):
     """Create a mocked DynamoDB table matching template.yaml."""
     with mock_aws():
         dynamodb = boto3.resource("dynamodb", region_name="ca-central-1")
-        table = dynamodb.create_table(
-            TableName="GradingTable",
-            BillingMode="PAY_PER_REQUEST",
-            AttributeDefinitions=[
-                {"AttributeName": "pk", "AttributeType": "S"},
-                {"AttributeName": "sk", "AttributeType": "S"},
-                {"AttributeName": "GSI1PK", "AttributeType": "S"},
-                {"AttributeName": "GSI1SK", "AttributeType": "S"},
-                {"AttributeName": "GSI2PK", "AttributeType": "S"},
-                {"AttributeName": "GSI2SK", "AttributeType": "S"},
-            ],
-            KeySchema=[
-                {"AttributeName": "pk", "KeyType": "HASH"},
-                {"AttributeName": "sk", "KeyType": "RANGE"},
-            ],
-            GlobalSecondaryIndexes=[
-                {
-                    "IndexName": "GSI1",
-                    "KeySchema": [
-                        {"AttributeName": "GSI1PK", "KeyType": "HASH"},
-                        {"AttributeName": "GSI1SK", "KeyType": "RANGE"},
-                    ],
-                    "Projection": {"ProjectionType": "ALL"},
-                },
-                {
-                    "IndexName": "GSI2",
-                    "KeySchema": [
-                        {"AttributeName": "GSI2PK", "KeyType": "HASH"},
-                        {"AttributeName": "GSI2SK", "KeyType": "RANGE"},
-                    ],
-                    "Projection": {"ProjectionType": "ALL"},
-                },
-            ],
-        )
+
+        existing_tables = dynamodb.meta.client.list_tables()["TableNames"]
+        if "GradingTable" not in existing_tables:
+            table = dynamodb.create_table(
+                TableName="GradingTable",
+                BillingMode="PAY_PER_REQUEST",
+                AttributeDefinitions=[
+                    {"AttributeName": "pk", "AttributeType": "S"},
+                    {"AttributeName": "sk", "AttributeType": "S"},
+                    {"AttributeName": "GSI1PK", "AttributeType": "S"},
+                    {"AttributeName": "GSI1SK", "AttributeType": "S"},
+                    {"AttributeName": "GSI2PK", "AttributeType": "S"},
+                    {"AttributeName": "GSI2SK", "AttributeType": "S"},
+                ],
+                KeySchema=[
+                    {"AttributeName": "pk", "KeyType": "HASH"},
+                    {"AttributeName": "sk", "KeyType": "RANGE"},
+                ],
+                GlobalSecondaryIndexes=[
+                    {
+                        "IndexName": "GSI1",
+                        "KeySchema": [
+                            {"AttributeName": "GSI1PK", "KeyType": "HASH"},
+                            {"AttributeName": "GSI1SK", "KeyType": "RANGE"},
+                        ],
+                        "Projection": {"ProjectionType": "ALL"},
+                    },
+                    {
+                        "IndexName": "GSI2",
+                        "KeySchema": [
+                            {"AttributeName": "GSI2PK", "KeyType": "HASH"},
+                            {"AttributeName": "GSI2SK", "KeyType": "RANGE"},
+                        ],
+                        "Projection": {"ProjectionType": "ALL"},
+                    },
+                ],
+            )
+        table = dynamodb.Table("GradingTable")
         table.meta.client.get_waiter("table_exists").wait(TableName="GradingTable")
         yield table
 
@@ -165,4 +169,51 @@ def session_token(lti_env_vars):
         launch_id="test-launch-id",
         course_id="C100",
         canvas_user_id="test-user-123",
+    )
+
+
+@pytest.fixture
+def instructor_launch(dynamodb_table):
+    from src.lti.launch_store import LaunchStore
+
+    LaunchStore(table=dynamodb_table).table.put_item(
+        Item={
+            "pk": "LAUNCH#test-launch-id",
+            "sk": "LAUNCH",
+            "launch_id": "test-launch-id",
+            "course_id": "C100",
+            "canvas_user_id": "test-user-123",
+            "roles": ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+        }
+    )
+    yield
+
+
+@pytest.fixture
+def student_launch(dynamodb_table):
+    """Create a student launch context in DynamoDB."""
+    from src.lti.launch_store import LaunchStore
+
+    LaunchStore(table=dynamodb_table).table.put_item(
+        Item={
+            "pk": "LAUNCH#student-launch-id",
+            "sk": "LAUNCH",
+            "launch_id": "student-launch-id",
+            "course_id": "C100",
+            "canvas_user_id": "student-user-123",
+            "roles": ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        }
+    )
+    yield
+
+
+@pytest.fixture
+def student_token(lti_env_vars):
+    """Create a valid RS256 session token for a student (course C100)."""
+    from src.auth.session import create_session_token
+
+    return create_session_token(
+        launch_id="student-launch-id",
+        course_id="C100",
+        canvas_user_id="student-user-123",
     )

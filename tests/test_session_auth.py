@@ -52,7 +52,9 @@ class TestRequireSession:
         with patch("src.core.aws.get_dynamodb_table", return_value=dynamodb_table):
             yield TestClient(create_app())
 
-    def test_valid_token_grants_access(self, client, session_token, sample_canvas_data):
+    def test_valid_token_grants_access(
+        self, client, session_token, sample_canvas_data, instructor_launch
+    ):
         response = client.post(
             "/jobs",
             json={
@@ -124,3 +126,18 @@ class TestRequireSession:
             headers={"Authorization": "Bearer not.a.valid.jwt"},
         )
         assert response.status_code == 401
+
+    def test_student_role_is_denied(
+        self, client, student_token, sample_canvas_data, student_launch
+    ):
+        response = client.post(
+            "/jobs",
+            headers={"Authorization": f"Bearer {student_token}"},
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test",
+                "canvas_data": sample_canvas_data,
+            },
+        )
+        assert response.status_code == 403

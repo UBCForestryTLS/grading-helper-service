@@ -16,7 +16,9 @@ def client(dynamodb_table, session_token):
 
 
 class TestAuthRequired:
-    def test_create_job_requires_auth(self, client, sample_canvas_data):
+    def test_create_job_requires_auth(
+        self, client, sample_canvas_data, instructor_launch
+    ):
         response = client.post(
             "/jobs",
             json={
@@ -46,7 +48,9 @@ class TestAuthRequired:
 
 
 class TestCreateJob:
-    def test_create_job_returns_201(self, client, session_token, sample_canvas_data):
+    def test_create_job_returns_201(
+        self, client, session_token, sample_canvas_data, instructor_launch
+    ):
         response = client.post(
             "/jobs",
             json={
@@ -68,7 +72,7 @@ class TestCreateJob:
         assert "job_id" in data
 
     def test_create_job_wrong_course_returns_403(
-        self, client, session_token, sample_canvas_data
+        self, client, session_token, sample_canvas_data, instructor_launch
     ):
         response = client.post(
             "/jobs",
@@ -82,7 +86,9 @@ class TestCreateJob:
         )
         assert response.status_code == 403
 
-    def test_create_job_invalid_canvas_data(self, client, session_token):
+    def test_create_job_invalid_canvas_data(
+        self, client, session_token, instructor_launch
+    ):
         response = client.post(
             "/jobs",
             json={
@@ -95,7 +101,7 @@ class TestCreateJob:
         )
         assert response.status_code == 422
 
-    def test_create_job_missing_fields(self, client, session_token):
+    def test_create_job_missing_fields(self, client, session_token, instructor_launch):
         response = client.post(
             "/jobs",
             json={"course_id": "C100"},
@@ -105,7 +111,9 @@ class TestCreateJob:
 
 
 class TestGetJob:
-    def test_get_job(self, client, session_token, sample_canvas_data):
+    def test_get_job(
+        self, client, session_token, sample_canvas_data, instructor_launch
+    ):
         create_resp = client.post(
             "/jobs",
             json={
@@ -125,7 +133,7 @@ class TestGetJob:
         assert response.status_code == 200
         assert response.json()["job_id"] == job_id
 
-    def test_get_job_not_found(self, client, session_token):
+    def test_get_job_not_found(self, client, session_token, instructor_launch):
         response = client.get(
             "/jobs/12345678-1234-5678-1234-567812345678",
             headers={"Authorization": f"Bearer {session_token}"},
@@ -133,7 +141,12 @@ class TestGetJob:
         assert response.status_code == 404
 
     def test_get_job_wrong_course_returns_403(
-        self, client, session_token, dynamodb_table, sample_canvas_data
+        self,
+        client,
+        session_token,
+        dynamodb_table,
+        sample_canvas_data,
+        instructor_launch,
     ):
         from src.models.grading_job import GradingJob
         from src.repositories.grading_job import GradingJobRepository
@@ -150,7 +163,9 @@ class TestGetJob:
 
 
 class TestListJobs:
-    def test_list_by_session_course(self, client, session_token, sample_canvas_data):
+    def test_list_by_session_course(
+        self, client, session_token, sample_canvas_data, instructor_launch
+    ):
         auth = {"Authorization": f"Bearer {session_token}"}
         client.post(
             "/jobs",
@@ -177,7 +192,9 @@ class TestListJobs:
         assert response.status_code == 200
         assert len(response.json()) == 2
 
-    def test_list_by_status(self, client, session_token, sample_canvas_data):
+    def test_list_by_status(
+        self, client, session_token, sample_canvas_data, instructor_launch
+    ):
         auth = {"Authorization": f"Bearer {session_token}"}
         client.post(
             "/jobs",
@@ -194,7 +211,7 @@ class TestListJobs:
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    def test_list_empty_results(self, client, session_token):
+    def test_list_empty_results(self, client, session_token, instructor_launch):
         # No jobs created — should return empty list for the session course
         response = client.get(
             "/jobs",
@@ -203,9 +220,44 @@ class TestListJobs:
         assert response.status_code == 200
         assert response.json() == []
 
+    def test_list_jobs_excludes_other_courses(
+        self,
+        client,
+        session_token,
+        dynamodb_table,
+        sample_canvas_data,
+        instructor_launch,
+    ):
+        from src.models.grading_job import GradingJob
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        other_job = GradingJob(
+            course_id="OTHER", quiz_id="Q99", job_name="Other Course Job"
+        )
+        repo.create(other_job)
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+        client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+
+        response = client.get("/jobs", headers=auth)
+        ids = {j["job_id"] for j in response.json()}
+        assert str(other_job.job_id) not in ids
+
 
 class TestGradeJob:
-    def test_grade_job_success(self, client, session_token, sample_canvas_data):
+    def test_grade_job_success(
+        self, client, session_token, sample_canvas_data, instructor_launch
+    ):
         auth = {"Authorization": f"Bearer {session_token}"}
         create_resp = client.post(
             "/jobs",
@@ -227,7 +279,7 @@ class TestGradeJob:
         assert response.status_code == 200
         mock_service.grade_job.assert_called_once()
 
-    def test_grade_job_not_found(self, client, session_token):
+    def test_grade_job_not_found(self, client, session_token, instructor_launch):
         response = client.post(
             "/jobs/12345678-1234-5678-1234-567812345678/grade",
             headers={"Authorization": f"Bearer {session_token}"},
@@ -235,7 +287,12 @@ class TestGradeJob:
         assert response.status_code == 404
 
     def test_grade_job_not_pending(
-        self, client, session_token, dynamodb_table, sample_canvas_data
+        self,
+        client,
+        session_token,
+        dynamodb_table,
+        sample_canvas_data,
+        instructor_launch,
     ):
         from src.models.grading_job import GradingJob, JobStatus
         from src.repositories.grading_job import GradingJobRepository
@@ -256,7 +313,7 @@ class TestGradeJob:
         assert response.status_code == 409
 
     def test_grade_job_wrong_course_returns_403(
-        self, client, session_token, dynamodb_table
+        self, client, session_token, dynamodb_table, instructor_launch
     ):
         from src.models.grading_job import GradingJob
         from src.repositories.grading_job import GradingJobRepository
@@ -273,7 +330,9 @@ class TestGradeJob:
 
 
 class TestListSubmissions:
-    def test_list_submissions(self, client, session_token, sample_canvas_data):
+    def test_list_submissions(
+        self, client, session_token, sample_canvas_data, instructor_launch
+    ):
         auth = {"Authorization": f"Bearer {session_token}"}
         create_resp = client.post(
             "/jobs",
@@ -295,7 +354,9 @@ class TestListSubmissions:
         assert "Plants use sunlight to make food" in answers
         assert "I don't know" in answers
 
-    def test_list_submissions_job_not_found(self, client, session_token):
+    def test_list_submissions_job_not_found(
+        self, client, session_token, instructor_launch
+    ):
         response = client.get(
             "/jobs/12345678-1234-5678-1234-567812345678/submissions",
             headers={"Authorization": f"Bearer {session_token}"},
@@ -303,7 +364,7 @@ class TestListSubmissions:
         assert response.status_code == 404
 
     def test_list_submissions_wrong_course_returns_403(
-        self, client, session_token, dynamodb_table
+        self, client, session_token, dynamodb_table, instructor_launch
     ):
         from src.models.grading_job import GradingJob
         from src.repositories.grading_job import GradingJobRepository
@@ -317,3 +378,87 @@ class TestListSubmissions:
             headers={"Authorization": f"Bearer {session_token}"},
         )
         assert response.status_code == 403
+
+
+class TestCancelJob:
+    def test_cancel_job_success(
+        self, client, session_token, sample_canvas_data, instructor_launch
+    ):
+        auth = {"Authorization": f"Bearer {session_token}"}
+        create_resp = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create_resp.json()["job_id"]
+
+        response = client.post(f"/jobs/{job_id}/cancel", headers=auth)
+        assert response.status_code == 200
+        assert response.json()["status"] == "CANCELLED"
+
+    def test_cancel_job_not_found(self, client, session_token, instructor_launch):
+        response = client.post(
+            "/jobs/12345678-1234-5678-1234-567812345678/cancel",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 404
+
+    def test_cancel_job_wrong_course_returns_403(
+        self, client, session_token, dynamodb_table, instructor_launch
+    ):
+        from src.models.grading_job import GradingJob
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(course_id="OTHER", quiz_id="Q50", job_name="Other Job")
+        repo.create(job)
+
+        response = client.post(
+            f"/jobs/{job.job_id}/cancel",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 403
+
+    def test_cancel_job_already_completed_returns_409(
+        self, client, session_token, dynamodb_table, instructor_launch
+    ):
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(
+            course_id="C100",
+            quiz_id="Q50",
+            job_name="Done Job",
+            status=JobStatus.COMPLETED,
+        )
+        repo.create(job)
+
+        response = client.post(
+            f"/jobs/{job.job_id}/cancel",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 409
+
+    def test_cancel_job_from_processing_returns_200(
+        self, client, session_token, dynamodb_table, instructor_launch
+    ):
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Processing Job")
+        repo.create(job)
+        repo.update_status(job.job_id, JobStatus.PROCESSING)
+
+        response = client.post(
+            f"/jobs/{job.job_id}/cancel",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "CANCELLED"

@@ -233,6 +233,9 @@ def render_instructor_ui(
     const SESSION_TOKEN = document.querySelector('meta[name="session-token"]').getAttribute('content');
     const BASE_URL = '{safe_base_url}';
     const LAUNCH_ID = '{safe_launch_id}';
+	const USER_ROLES = {list(roles)};
+	const ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"];
+	const IS_AUTHORIZED = USER_ROLES.some(r => ALLOWED_ROLES.includes(r));	
     let currentJobId = null;
     let pollTimer = null;
     let cameFromHistory = false;
@@ -322,6 +325,8 @@ def render_instructor_ui(
     // If Canvas returns 401 the instructor needs to OAuth-authorize the tool;
     // we surface the authorize link instead of an error.
     async function loadQuizzes() {{
+		if (!IS_AUTHORIZED) return;
+
       document.getElementById('btn-load-quizzes').disabled = true;
       document.getElementById('quiz-error').classList.add('hidden');
       document.getElementById('auth-prompt').classList.add('hidden');
@@ -563,6 +568,7 @@ def render_instructor_ui(
     // history table, sorted newest-first. Only COMPLETED jobs get a
     // "View Results" button.
     async function loadPastJobs() {{
+	  if (!IS_AUTHORIZED) return;
       const tbody = document.getElementById('history-tbody');
       const emptyMsg = document.getElementById('history-empty');
       const errorEl = document.getElementById('history-error');
@@ -639,6 +645,7 @@ def render_instructor_ui(
     // and grading-progress sections, surfaces the "Back to Past Jobs" link,
     // and reuses showResults() to render the table.
     async function viewJobResults(jobId, jobName) {{
+	  
       currentJobId = jobId;
       cameFromHistory = true;
 
@@ -711,6 +718,11 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
         document.getElementById('btn-passback').disabled = false;
       }}
     }}
+
+	if (!IS_AUTHORIZED) {{
+		document.getElementById('tab-btn-grade').style.display = 'none';
+		document.getElementById('tab-grade').innerHTML = '<div class="card"><p>You do not have permission to access this tool.</p></div>';
+	}}
     
   </script>
 </body>

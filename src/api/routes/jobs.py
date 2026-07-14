@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
 
-from src.auth.session import SessionUser, require_session
+from src.auth.session import SessionUser, require_instructor
 from src.core.observability import logger, metrics, MetricUnit
 from src.models.grading_job import GradingJob, GradingJobCreate, JobStatus
 from src.models.submission import Submission
@@ -36,7 +36,7 @@ def _get_sub_repo() -> SubmissionRepository:
 @router.post("", status_code=201, response_model=GradingJob)
 def create_job(
     body: GradingJobCreate,
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ) -> GradingJob:
     """Create a new grading job from Canvas quiz export data."""
 
@@ -62,7 +62,7 @@ def create_job(
 @router.get("/{job_id}", response_model=GradingJob)
 def get_job(
     job_id: UUID,
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ) -> GradingJob:
     """Get a grading job by ID."""
     logger.info("Getting job", job_id=str(job_id), course_id=session.course_id)
@@ -78,7 +78,7 @@ def get_job(
 @router.get("", response_model=list[GradingJob])
 def list_jobs(
     status: JobStatus | None = Query(None),
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ) -> list[GradingJob]:
     """List grading jobs for the session's course, optionally filtered by status."""
     logger.info("Listing jobs", course_id=session.course_id, status=status)
@@ -92,7 +92,7 @@ def list_jobs(
 @router.post("/{job_id}/grade", response_model=GradingJob)
 def grade_job(
     job_id: UUID,
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ) -> GradingJob:
     """Start AI grading for a job's submissions."""
     logger.info("Starting grading", job_id=str(job_id), course_id=session.course_id)
@@ -117,7 +117,7 @@ def grade_job(
 @router.post("/{job_id}/cancel", response_model=GradingJob)
 def cancel_job(
     job_id: UUID,
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ) -> GradingJob:
     """Cancel a pending or processing grading job."""
     logger.info("Cancelling job", job_id=str(job_id), course_id=session.course_id)
@@ -148,7 +148,7 @@ def cancel_job(
 @router.get("/{job_id}/submissions", response_model=list[Submission])
 def list_submissions(
     job_id: UUID,
-    session: SessionUser = Depends(require_session),
+    session: SessionUser = Depends(require_instructor),
 ) -> list[Submission]:
     """List all submissions for a grading job."""
     logger.info(

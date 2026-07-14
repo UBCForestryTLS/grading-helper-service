@@ -59,6 +59,8 @@ class LaunchStore:
         if nrps_url:
             item["nrps_context_memberships_url"] = nrps_url
 
+        roles_raw = claims.get("https://purl.imsglobal.org/spec/lti/claim/roles", [])
+        item["roles"] = roles_raw
         self.table.put_item(Item=item)
         return launch_id
 
