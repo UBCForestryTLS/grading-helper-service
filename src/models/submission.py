@@ -25,3 +25,7 @@ class Submission(BaseModel):
     ai_grade: float | None = None
     ai_feedback: str | None = None
     ai_graded_at: datetime | None = None
+    instructor_grade: float | None = None
+    instructor_feedback: str | None = None
+    overridden_by: str | None = None
+    overridden_at: datetime | None = None
