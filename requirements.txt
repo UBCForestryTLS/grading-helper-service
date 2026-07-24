@@ -8,12 +8,21 @@ anyio==4.12.1
     # via
     #   httpx
     #   starlette
+attrs==26.1.0
+    # via aws-encryption-sdk
+aws-encryption-sdk==4.0.5
+    # via aws-lambda-powertools
 aws-lambda-powertools==3.24.0
     # via grading-helper-service
+aws-xray-sdk==2.15.0
+    # via aws-lambda-powertools
 boto3==1.42.43
-    # via grading-helper-service
+    # via
+    #   aws-encryption-sdk
+    #   grading-helper-service
 botocore==1.42.43
     # via
+    #   aws-xray-sdk
     #   boto3
     #   s3transfer
 certifi==2025.10.5
@@ -23,9 +32,13 @@ certifi==2025.10.5
 cffi==2.0.0 ; platform_python_implementation != 'PyPy'
     # via cryptography
 cryptography==46.0.4
-    # via grading-helper-service
+    # via
+    #   aws-encryption-sdk
+    #   grading-helper-service
 fastapi==0.128.3
     # via grading-helper-service
+fastjsonschema==2.21.2
+    # via aws-lambda-powertools
 h11==0.16.0
     # via httpcore
 httpcore==1.0.9
@@ -41,19 +54,24 @@ jmespath==1.1.0
     #   aws-lambda-powertools
     #   boto3
     #   botocore
+jsonpath-ng==1.8.0
+    # via aws-lambda-powertools
 mangum==0.21.0
     # via grading-helper-service
 pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
 pydantic==2.12.5
     # via
+    #   aws-lambda-powertools
     #   fastapi
     #   grading-helper-service
     #   pydantic-settings
 pydantic-core==2.41.5
     # via pydantic
 pydantic-settings==2.12.0
-    # via grading-helper-service
+    # via
+    #   aws-lambda-powertools
+    #   grading-helper-service
 pyjwt==2.11.0
     # via grading-helper-service
 python-dateutil==2.9.0.post0
@@ -83,3 +101,7 @@ typing-inspection==0.4.2
     #   pydantic-settings
 urllib3==2.5.0
     # via botocore
+wrapt==2.1.2
+    # via
+    #   aws-encryption-sdk
+    #   aws-xray-sdk
