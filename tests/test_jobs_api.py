@@ -317,3 +317,23 @@ class TestListSubmissions:
             headers={"Authorization": f"Bearer {session_token}"},
         )
         assert response.status_code == 403
+
+
+# class TestJobOverride:
+#     def test_override_submission_out_of_range(self, client):
+#         resp = client.patch(
+#             f"/jobs/{job_id}/submissions/{submission_id}",
+#             json={"grade": 9999},
+#             headers=auth_headers,
+#         )
+#         assert resp.status_code == 422
+
+
+# # def test_override_submission_job_not_completed(self, client):
+# #     # job with status PENDING or PROCESSING
+# #     resp = client.patch(...)
+# #     assert resp.status_code == 409
+
+# # def test_override_submission_wrong_course(self, client):
+# #     resp = client.patch(..., headers=other_course_auth_headers)
+# #     assert resp.status_code == 403

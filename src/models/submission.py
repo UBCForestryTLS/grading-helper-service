@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 class Submission(BaseModel):
@@ -29,3 +29,21 @@ class Submission(BaseModel):
     instructor_feedback: str | None = None
     overridden_by: str | None = None
     overridden_at: datetime | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def effective_grade(self) -> float | None:
+        return (
+            self.instructor_grade
+            if self.instructor_grade is not None
+            else self.ai_grade
+        )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def effective_feedback(self) -> str | None:
+        return (
+            self.instructor_feedback
+            if self.instructor_feedback is not None
+            else self.ai_feedback
+        )

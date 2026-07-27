@@ -149,7 +149,7 @@ class SubmissionRepository:
         )
         return self.get(job_id, submission_id)
 
-    def clear_override(self, job_id: str, submission_id: str) -> Submission:
+    def clear_override(self, job_id: UUID, submission_id: str) -> Submission:
         self.table.update_item(
             Key={"pk": f"JOB#{job_id}", "sk": f"SUB#{submission_id}"},
             UpdateExpression="REMOVE instructor_grade, instructor_feedback, overridden_by, overridden_at",

@@ -149,3 +149,49 @@ def list_submissions(
 
     sub_repo = _get_sub_repo()
     return sub_repo.list_by_job(job_id)
+
+
+# from src.core.validation import validate_grade
+
+# class SubmissionOverride(BaseModel):
+#     grade: float | None = None
+#     feedback: str | None = None
+#     revert: bool = False
+
+
+# @router.patch("/{job_id}/submissions/{submission_id}", response_model=Submission)
+# def override_submission(
+#     job_id: UUID,
+#     submission_id: UUID,
+#     body: SubmissionOverride,
+#     session: SessionUser = Depends(require_session),
+# ) -> Submission:
+#     """Set or clear an instructor override on a submission's grade/feedback."""
+#     job_repo = _get_job_repo()
+#     job = job_repo.get(job_id)
+#     if job is None:
+#         raise HTTPException(status_code=404, detail="Job not found")
+#     if job.course_id != session.course_id:
+#         raise HTTPException(status_code=403, detail="Access denied")
+#     if job.status != JobStatus.COMPLETED:
+#         raise HTTPException(
+#             status_code=409,
+#             detail=f"Job is {job.status}, must be COMPLETED to override a grade",
+#         )
+
+#     sub_repo = _get_sub_repo()
+#     submission = sub_repo.get(job_id, submission_id)
+#     if submission is None:
+#         raise HTTPException(status_code=404, detail="Submission not found")
+
+#     if body.revert:
+#         return sub_repo.clear_override(job_id, submission_id)
+
+#     if body.grade is not None:
+#         error = validate_grade(body.grade, submission.points_possible)
+#         if error:
+#             raise HTTPException(status_code=422, detail=error)
+
+#     return sub_repo.set_override(
+#         job_id, submission_id, body.grade, body.feedback, session.canvas_user_id
+#     )
