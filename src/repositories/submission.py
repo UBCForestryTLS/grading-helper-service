@@ -45,6 +45,15 @@ class SubmissionRepository:
             item["ai_feedback"] = sub.ai_feedback
         if sub.ai_graded_at is not None:
             item["ai_graded_at"] = sub.ai_graded_at.isoformat()
+            
+        if sub.instructor_grade is not None:
+            item["instructor_grade"] = str(sub.instructor_grade)
+        if sub.instructor_feedback is not None:
+            item["instructor_feedback"] = sub.instructor_feedback
+        if sub.overridden_by is not None:
+            item["overridden_by"] = sub.overridden_by
+        if sub.overridden_at is not None:
+            item["overridden_at"] = sub.overridden_at.isoformat()
         return item
 
     def _from_item(self, item: dict) -> Submission:
@@ -149,7 +158,7 @@ class SubmissionRepository:
         )
         return self.get(job_id, submission_id)
 
-    def clear_override(self, job_id: str, submission_id: str) -> Submission:
+    def clear_override(self, job_id: UUID, submission_id: UUID) -> Submission:
         self.table.update_item(
             Key={"pk": f"JOB#{job_id}", "sk": f"SUB#{submission_id}"},
             UpdateExpression="REMOVE instructor_grade, instructor_feedback, overridden_by, overridden_at",

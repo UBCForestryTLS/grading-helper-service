@@ -502,7 +502,7 @@ def render_instructor_ui(
       order.forEach(uid => {{
         let s = 0, m = 0;
         groups[uid].forEach(sub => {{
-          if (sub.ai_grade != null) s += sub.ai_grade;
+          if (sub.effective_grade != null) s += sub.effective_grade;
           m += sub.points_possible;
         }});
         if (m > 0) {{
@@ -527,7 +527,7 @@ def render_instructor_ui(
         let studentScore = 0;
         let studentMax = 0;
         studentSubs.forEach(s => {{
-          if (s.ai_grade != null) studentScore += s.ai_grade;
+          if (s.effective_grade != null) studentScore += s.effective_grade;
           studentMax += s.points_possible;
         }});
 
@@ -546,9 +546,9 @@ def render_instructor_ui(
             stripHtml(sub.question_name) || ('Q' + sub.question_id),
             stripHtml(sub.question_text) || '\u2014',
             stripHtml(sub.student_answer),
-            sub.ai_grade != null ? sub.ai_grade : '\u2014',
+            sub.effective_grade != null ? sub.effective_grade : '\u2014',
             sub.points_possible,
-            stripHtml(sub.ai_feedback) || '\u2014',
+            stripHtml(sub.effective_feedback) || '\u2014',
           ].forEach(val => {{
             const td = document.createElement('td');
             td.textContent = val;
@@ -558,7 +558,7 @@ def render_instructor_ui(
         }});
       }});
 
-      const graded = subs.filter(s => s.ai_grade != null).length;
+      const graded = subs.filter(s => s.effective_grade != null).length;
       document.getElementById('results-summary').textContent =
         graded + ' of ' + subs.length + ' answers graded.';
       document.getElementById('section-results').classList.remove('hidden');
