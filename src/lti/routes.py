@@ -23,6 +23,8 @@ from src.lti.ui import render_instructor_ui
 
 router = APIRouter(prefix="/lti", tags=["lti"])
 jwks_router = APIRouter(tags=["lti"])
+LATEX_PATTERN = re.compile(r"\\[a-zA-Z]+")
+CONTROL_CHARACTER_PATTERN = re.compile(r"[\x00-\x08\x0b-\x0c\x0e-\x1f]")
 
 
 @router.get("/login")
@@ -205,8 +207,8 @@ def _sanitize_answer(text: str) -> str:
     if not text:
         return ""
     text = text.replace("\\", "\\\\")
-    text = re.sub(r"\\[a-zA-Z]+", "", text)
-    text = re.sub(r"[\x00-\x08\x0b-\x0c\x0e-\x1f]", "", text)
+    text = LATEX_PATTERN.sub("", text)
+    text = CONTROL_CHARACTER_PATTERN.sub("", text)
     return text.strip()
 
 

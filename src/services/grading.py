@@ -66,14 +66,15 @@ class GradingService:
                 sub = futures[future]
                 try:
                     future.result()
-                except Exception as e:
-                    logger.error(
+                except Exception:
+                    logger.exception(
                         "Grading submission failed",
                         job_id=str(job_id),
                         submission_id=str(sub.submission_id),
-                        error=str(e),
                     )
-                    errors.append(f"Submission {sub.submission_id}: {e}")
+                    errors.append(
+                        f"Submission {sub.submission_id}: Failed to grade submission"
+                    )
 
         if errors:
             logger.warning(
@@ -182,11 +183,10 @@ class GradingService:
 
         try:
             parsed = json.loads(text)
-        except Exception as e:
-            logger.error(
+        except Exception:
+            logger.exception(
                 "Failed to parse Bedrock response text",
                 raw_text=text,
-                error=f"{e.__class__.__name__} {e}",
             )
             raise
         grade = float(parsed["grade"])
