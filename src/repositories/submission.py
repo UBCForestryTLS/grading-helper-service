@@ -45,7 +45,7 @@ class SubmissionRepository:
             item["ai_feedback"] = sub.ai_feedback
         if sub.ai_graded_at is not None:
             item["ai_graded_at"] = sub.ai_graded_at.isoformat()
-            
+
         if sub.instructor_grade is not None:
             item["instructor_grade"] = str(sub.instructor_grade)
         if sub.instructor_feedback is not None:
@@ -144,9 +144,7 @@ class SubmissionRepository:
 
         if grade is not None:
             update_expr_parts.append("instructor_grade = :ig")
-            expr_values[":ig"] = str(
-                grade
-            )  # match your existing float-as-string convention if you use one — check ai_grade's stored type first
+            expr_values[":ig"] = str(grade)
         if feedback is not None:
             update_expr_parts.append("instructor_feedback = :ifb")
             expr_values[":ifb"] = feedback

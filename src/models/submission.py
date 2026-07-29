@@ -33,7 +33,7 @@ class Submission(BaseModel):
     @computed_field
     @property
     def effective_grade(self) -> float | None:
-        if self.instructor_grade:
+        if self.instructor_grade is not None:
             return self.instructor_grade
 
         return self.ai_grade
@@ -41,7 +41,7 @@ class Submission(BaseModel):
     @computed_field
     @property
     def effective_feedback(self) -> str | None:
-        if self.instructor_feedback:
+        if self.instructor_feedback is not None:
             return self.instructor_feedback
 
         return self.ai_feedback
