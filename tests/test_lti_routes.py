@@ -498,7 +498,6 @@ class TestPassback:
         assert "Re-authorize" in response.json()["detail"]
 
 
-
 class TestExtractAnswers:
     """Tests for _extract_answers function."""
 
@@ -558,6 +557,7 @@ class TestExtractAnswers:
         result = _extract_answers(submission_data)
         assert result[0]["question_id"] is None
         assert result[0]["answer"] == "some answer"
+
     def test_passback_rejects_incomplete_job(
         self, client, mock_table, session_token, instructor_launch
     ):
