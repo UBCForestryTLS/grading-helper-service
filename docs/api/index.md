@@ -176,7 +176,9 @@ Lets instructor set or clear a grade/feedback override on a single submission.
 - **Auth:** Required
 - **Errors:** 404 if job or submission not found, 403 if wrong course, 422 if grade is out of range
 
+**Response:** Updated `Submission` object
 **Request body example:**
+
 ```json
 {
   "grade": 8.5,
@@ -184,9 +186,6 @@ Lets instructor set or clear a grade/feedback override on a single submission.
   "revert": false
 }
 ```
-
-**Response:** Updated `Submission` object
-
 ---
 
 ## LTI Endpoints
