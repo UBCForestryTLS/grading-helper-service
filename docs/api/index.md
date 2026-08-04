@@ -186,6 +186,14 @@ Lets instructor set or clear a grade/feedback override on a single submission.
   "revert": false
 }
 ```
+
+```json
+{
+  "grade": 8.5,
+  "feedback": "Good explanation. Added points for the correct example.",
+  "revert": false
+}
+```
 ---
 
 ## LTI Endpoints
