@@ -208,7 +208,7 @@ def render_instructor_ui(
             <th>Question</th>
             <th>Question Text</th>
             <th>Student Answer</th>
-            <th>AI Grade</th>
+            <th>Grade</th>
             <th>Max</th>
             <th>Feedback</th>
             <th>Override</th>
