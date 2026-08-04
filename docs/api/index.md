@@ -155,6 +155,15 @@ List all submissions for a grading job, including AI grades and feedback if grad
 ]
 ```
 
+### `PATCH /jobs/{job_id}/submissions/{submissions_id}`
+
+Lets instructor set or clear a grade/feedback override on a single submission.
+
+- **Auth:** Required
+- **Errors:** 404 if job or submission not found, 403 if wrong course, 422 if grade is out of range
+
+**Response:** Updated of `Submission` object
+
 ---
 
 ## LTI Endpoints

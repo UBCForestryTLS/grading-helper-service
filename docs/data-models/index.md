@@ -42,6 +42,8 @@ erDiagram
         string ai_grade
         string ai_feedback
         string ai_graded_at
+        string insructor_grade
+        string insructor_feedback
     }
 
     LTIState {
@@ -191,6 +193,12 @@ One student answer to one question. Defined in `src/models/submission.py`.
 | `ai_grade` | `float | None` | AI-assigned grade (clamped to 0..points_possible) |
 | `ai_feedback` | `str | None` | AI-generated feedback text |
 | `ai_graded_at` | `datetime | None` | When the AI grading was performed |
+| `insructor_grade` | `float | None` | Grade set by instructor override, replaces AI grade when present |
+| `insructor_feedback` | `str | None` | feedback set by instructor override. replaces AI feedback when present |
+| `effective_grade` | `float | None` | Returns instructor grade if set, otherwise AI grade|
+| `effective_feedback` | `str | None` | Returns instructor feedback if set, otherwise AI feedback |
+| `overridden_by` | `str | None` | Canvas user ID of the instructor/TA who performed the override |
+| `overridden_at` | `datetime | None` | When the Instructor override was done |
 
 ### SessionUser
 
