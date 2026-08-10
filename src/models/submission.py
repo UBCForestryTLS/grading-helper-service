@@ -14,6 +14,12 @@ class GradingStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class GradingStatus(StrEnum):
+    PENDING = "PENDING"
+    GRADED = "GRADED"
+    FAILED = "FAILED"
+
+
 class Submission(BaseModel):
     """A single submission to be graded — one student answer to one question."""
 
