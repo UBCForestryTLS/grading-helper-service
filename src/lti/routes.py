@@ -18,6 +18,7 @@ from src.lti.key_manager import get_public_jwk
 from src.lti.launch_store import LaunchStore
 from src.lti.state import LTIStateStore
 from src.lti.ui import render_instructor_ui
+from src.models.grading_job import JobStatus
 
 
 router = APIRouter(prefix="/lti", tags=["lti"])
@@ -435,7 +436,14 @@ def lti_passback(
     from src.repositories.grading_job import GradingJobRepository
 
     job = GradingJobRepository().get(UUID(job_id))
-    if job and job.quiz_id:
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status not in (JobStatus.COMPLETED, JobStatus.COMPLETED_WITH_ERRORS):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job is {job.status}, must finish grading before passback",
+        )
+    if job.quiz_id:
         token = get_canvas_token(
             course_id=session.course_id,
             canvas_user_id=session.canvas_user_id,

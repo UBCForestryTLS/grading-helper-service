@@ -13,6 +13,7 @@ class JobStatus(StrEnum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    COMPLETED_WITH_ERRORS = "COMPLETED_WITH_ERRORS"
 
 
 class GradingJob(BaseModel):
@@ -29,6 +30,8 @@ class GradingJob(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     error_message: str | None = None
+    success_count: int = 0
+    fail_count: int = 0
 
 
 class GradingJobCreate(BaseModel):
