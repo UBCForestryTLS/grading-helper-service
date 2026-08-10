@@ -1,10 +1,17 @@
 """Pydantic models for individual grading submissions."""
 
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field
 from src.core.validation import validate_grade
+
+
+class GradingStatus(StrEnum):
+    PENDING = "PENDING"
+    GRADED = "GRADED"
+    FAILED = "FAILED"
 
 
 class Submission(BaseModel):
@@ -30,6 +37,8 @@ class Submission(BaseModel):
     instructor_feedback: str | None = None
     overridden_by: str | None = None
     overridden_at: datetime | None = None
+    grading_error: str | None = None
+    grading_status: GradingStatus = GradingStatus.PENDING
 
     @computed_field
     @property
