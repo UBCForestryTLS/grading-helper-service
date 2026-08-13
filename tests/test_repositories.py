@@ -330,12 +330,15 @@ class TestSubmissionRepository:
             overridden_by="instructor_123",
         )
         assert updated.instructor_grade == 8.5
+        assert updated.instructor_feedback == "Good work but check citation 3"
         assert updated.overridden_by == "instructor_123"
         assert updated.effective_grade == 8.5
+        assert updated.effective_feedback == "Good work but check citation 3"
 
         cleared = repo.clear_override(job_id, sub.submission_id)
         assert cleared.instructor_grade is None
         assert cleared.effective_grade == cleared.ai_grade
+        assert cleared.effective_feedback == cleared.ai_feedback
 
     def test_override_persists_across_separate_get(self, dynamodb_table):
         repo = SubmissionRepository(table=dynamodb_table)
@@ -367,3 +370,4 @@ class TestSubmissionRepository:
         assert refetched.instructor_feedback == "Check citation 3"
         assert refetched.overridden_by == "instructor_123"
         assert refetched.effective_grade == 8.5
+        assert refetched.effective_feedback == "Check citation 3"
