@@ -200,6 +200,12 @@ def override_submission(
     if body.grade is None and body.feedback is None and not body.revert:
         raise HTTPException(status_code=422, detail="Nothing to update.")
 
+    if body.revert and (body.grade is not None or body.feedback is not None):
+        raise HTTPException(
+            status_code=422,
+            detail="Cannot provide grade or feedback when reverting.",
+        )
+
     if body.revert:
         updated = sub_repo.clear_override(job_id, submission_id)
         if updated is None:
@@ -210,7 +216,11 @@ def override_submission(
         error = validate_grade(body.grade, submission.points_possible)
         if error:
             raise HTTPException(status_code=422, detail=error)
-
+    if body.feedback is not None and not body.feedback.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Feedback cannot be empty.",
+        )
     updated = sub_repo.set_override(
         job_id,
         submission_id,
