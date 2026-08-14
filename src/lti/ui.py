@@ -102,9 +102,9 @@ def render_instructor_ui(
     .badge-override {{ background: #e8f0fe; color: #1a56db; font-size: 0.75em; 
                     padding: 1px 6px; border-radius: 10px; margin-left: 4px; }}
     .override-form {{ display: flex; flex-direction: column; gap: 4px; min-width: 160px; }}
-    .override-form input {{ padding: 4px 6px; font-size: 0.85em; border: 1px solid #ccc;
+    .override-form input {{ padding: 4px 6px; font-size: 0.85rem; border: 1px solid #ccc;
                             border-radius: 4px; width: 70px; }}
-    .override-form textarea {{ padding: 4px 6px; font-size: 0.85em; border: 1px solid #ccc;
+    .override-form textarea {{ padding: 4px 6px; font-size: 0.85rem; border: 1px solid #ccc;
                             border-radius: 4px; resize: vertical; width: 100%; }}
     .override-form .btn-row {{ display: flex; gap: 4px; }}
     .btn-save {{ background: #006600; padding: 3px 10px; font-size: 0.82em; }}
@@ -592,6 +592,12 @@ def render_instructor_ui(
           const tdF = document.createElement('td');
           tdF.id = 'feedback-cell-' + sub.submission_id;
           tdF.textContent = stripHtml(sub.effective_feedback) || '\u2014';
+          if (sub.instructor_feedback) {{
+              const feedbackBadge = document.createElement('span');
+              feedbackBadge.className = 'badge-override';
+              feedbackBadge.textContent = 'edited';
+              tdF.appendChild(feedbackBadge);
+          }}
           tr.appendChild(tdF);
 
           const tdO = document.createElement('td');
@@ -607,6 +613,7 @@ def render_instructor_ui(
           ${{isOverridden ? `<button class="btn-revert" onclick="revertOverride('${{currentJobId}}', '${{sub.submission_id}}')">Revert</button>` : ''}}
         </div>
         <div id="override-msg-${{sub.submission_id}}" class="status"></div>
+        ${{isOverridden ? `<div class="override-info" style="font-size:0.8rem; color:#666; margin-top:4px;">Last override by ${{sub.overridden_by || 'unknown'}}</div>` : ''}}
         </div>
         `;
         tr.appendChild(tdO);
@@ -832,9 +839,35 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             badge.textContent = 'edited';
             gradeCell.appendChild(badge);
             }}
+    
+            const feedbackCell = document.getElementById('feedback-cell-' + submissionId);
+            feedbackCell.textContent = stripHtml(updated.effective_feedback) || '\u2014';
+            if (updated.instructor_feedback) {{
+                const feedbackBadge = document.createElement('span');
+                feedbackBadge.className = 'badge-override';
+                feedbackBadge.textContent = 'edited';
+                feedbackCell.appendChild(feedbackBadge);
+            }}
 
-            document.getElementById('feedback-cell-' + submissionId).textContent =
-            stripHtml(updated.effective_feedback) || '\u2014';
+            const overrideForm = gradeInput.closest('.override-form');
+            const btnRow = overrideForm.querySelector('.btn-row');
+            if (!btnRow.querySelector('.btn-revert')) {{
+                const revertBtn = document.createElement('button');
+                revertBtn.className = 'btn-revert';
+                revertBtn.textContent = 'Revert';
+                revertBtn.onclick = () => revertOverride(jobId, submissionId);
+                btnRow.appendChild(revertBtn);
+            }}
+
+
+            let overrideInfo = overrideForm.querySelector('.override-info');
+            if (!overrideInfo) {{
+                overrideInfo = document.createElement('div');
+                overrideInfo.className = 'override-info';
+                overrideInfo.style.cssText = 'font-size:0.8rem; color:#666; margin-top:4px;';
+                overrideForm.appendChild(overrideInfo);
+            }}
+            overrideInfo.textContent = 'Last override by ' + (updated.overridden_by || 'unknown');
 
         }} catch (e) {{
             msgEl.textContent = 'Could not connect. Please try again.';
@@ -843,6 +876,9 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
     }}
 
     async function revertOverride(jobId, submissionId, pointsPossible){{
+        if (!confirm('Are you sure you want to revert this override? The AI grade and feedback will be restored.')) {{
+            return;
+        }}
         const msgEl = document.getElementById('override-msg-' + submissionId);
         msgEl.textContent = 'Reverting...';
         msgEl.style.color = '#555';
@@ -872,6 +908,13 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
 
             document.getElementById('input-grade-' + submissionId).value = '';
             document.getElementById('input-feedback-' + submissionId).value = '';
+            
+            const gradeInput = document.getElementById('input-grade-' + submissionId);
+            const overrideForm = gradeInput.closest('.override-form');
+            const revertBtn = overrideForm.querySelector('.btn-revert');
+            if (revertBtn) revertBtn.remove();
+            const overrideInfo = overrideForm.querySelector('.override-info');
+            if (overrideInfo) overrideInfo.remove();
 
         }} catch (e) {{
             msgEl.textContent = 'Could not connect. Please try again.';

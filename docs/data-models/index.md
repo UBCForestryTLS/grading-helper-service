@@ -42,8 +42,8 @@ erDiagram
         string ai_grade
         string ai_feedback
         string ai_graded_at
-        string insructor_grade
-        string insructor_feedback
+        string instructor_grade
+        string instructor_feedback
     }
 
     LTIState {
@@ -146,7 +146,7 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 | `quiz_id` | `str` | Canvas quiz ID |
 | `assignment_id` | `str` | Canvas assignment ID (used for AGS lineitem matching) |
 | `job_name` | `str` | Human-readable name |
-| `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, or `FAILED` |
+| `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, or `CANCELLED` |
 | `total_questions` | `int` | Number of questions in the quiz |
 | `total_submissions` | `int` | Number of student submissions |
 | `created_at` | `datetime` | UTC timestamp |
@@ -161,6 +161,7 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 - `PROCESSING` — Bedrock calls in progress
 - `COMPLETED` — all submissions graded successfully
 - `FAILED` — one or more submissions failed to grade (error_message has details)
+- `CANCELLED` — job cancelled successfully
 
 ### GradingJobCreate
 

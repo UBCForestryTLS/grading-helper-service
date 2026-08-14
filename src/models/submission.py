@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field
+from src.core.validation import validate_grade
 
 
 class Submission(BaseModel):
@@ -34,8 +35,8 @@ class Submission(BaseModel):
     @property
     def effective_grade(self) -> float | None:
         if self.instructor_grade is not None:
-            grade = max(0.0, min(self.instructor_grade, self.points_possible))
-            return grade
+            if validate_grade(self.instructor_grade, self.points_possible) is None:
+                return self.instructor_grade
 
         return self.ai_grade
 
