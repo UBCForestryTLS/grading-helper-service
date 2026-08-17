@@ -213,10 +213,10 @@ def override_submission(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.course_id != session.course_id:
         raise HTTPException(status_code=403, detail="Access denied")
-    if job.status != JobStatus.COMPLETED:
+    if job.status not in (JobStatus.COMPLETED, JobStatus.COMPLETED_WITH_ERRORS):
         raise HTTPException(
             status_code=409,
-            detail=f"Job is {job.status}, must be COMPLETED or COMPLETED WITH ERRORS to override a grade",
+            detail=f"Job is {job.status}, must be COMPLETED or COMPLETED_WITH_ERRORS to override a grade",
         )
 
     sub_repo = _get_sub_repo()

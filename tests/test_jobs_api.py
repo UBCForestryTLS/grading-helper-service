@@ -841,3 +841,115 @@ class TestSubmissionOverride:
             headers=auth,
         )
         assert response.status_code == 404
+
+    def test_override_submission_allowed_on_completed_with_errors(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create.json()["job_id"]
+
+        GradingJobRepository(table=dynamodb_table).update_status(
+            UUID(job_id), JobStatus.COMPLETED_WITH_ERRORS, success_count=1, fail_count=1
+        )
+
+        subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
+        submission_id = subs[0]["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={"grade": 5},
+            headers=auth,
+        )
+        assert response.status_code == 200
+
+
+class TestRetryFailedJob:
+    def test_retry_requires_completed_with_errors(
+        self, client, session_token, instructor_launch, dynamodb_table
+    ):
+        from src.models.grading_job import GradingJob
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Pending Job")
+        repo.create(job)
+
+        response = client.post(
+            f"/jobs/{job.job_id}/retry-failed",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 409
+
+    def test_retry_not_found(self, client, session_token, instructor_launch):
+        response = client.post(
+            "/jobs/12345678-1234-5678-1234-567812345678/retry-failed",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 404
+
+    def test_retry_wrong_course_returns_403(
+        self, client, session_token, dynamodb_table, instructor_launch
+    ):
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(
+            course_id="OTHER",
+            quiz_id="Q50",
+            job_name="Other Job",
+            status=JobStatus.COMPLETED_WITH_ERRORS,
+        )
+        repo.create(job)
+
+        response = client.post(
+            f"/jobs/{job.job_id}/retry-failed",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 403
+
+    def test_retry_calls_service(
+        self, client, session_token, dynamodb_table, instructor_launch
+    ):
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(
+            course_id="C100",
+            quiz_id="Q50",
+            job_name="Partial Job",
+            status=JobStatus.COMPLETED_WITH_ERRORS,
+        )
+        repo.create(job)
+
+        with patch("src.api.routes.jobs._get_grading_service") as mock_get_service:
+            mock_service = mock_get_service.return_value
+            mock_service.retry_failed.return_value = None
+            response = client.post(
+                f"/jobs/{job.job_id}/retry-failed",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+
+        assert response.status_code == 200
+        mock_service.retry_failed.assert_called_once()
