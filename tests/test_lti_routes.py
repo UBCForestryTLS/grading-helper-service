@@ -430,7 +430,7 @@ class TestPassback:
         from uuid import uuid4
         from unittest.mock import patch
 
-        from src.models.grading_job import GradingJob
+        from src.models.grading_job import GradingJob, JobStatus
         from src.repositories.grading_job import GradingJobRepository
 
         job_id = uuid4()
@@ -440,6 +440,7 @@ class TestPassback:
                 course_id="C100",
                 quiz_id="Q50",
                 job_name="Test Quiz",
+                status=JobStatus.COMPLETED,
             )
         )
 
@@ -472,7 +473,7 @@ class TestPassback:
         from uuid import uuid4
         from unittest.mock import patch
 
-        from src.models.grading_job import GradingJob
+        from src.models.grading_job import GradingJob, JobStatus
         from src.repositories.grading_job import GradingJobRepository
 
         job_id = uuid4()
@@ -482,6 +483,7 @@ class TestPassback:
                 course_id="C100",
                 quiz_id="Q50",
                 job_name="Test Quiz",
+                status=JobStatus.COMPLETED,
             )
         )
 
@@ -555,3 +557,56 @@ class TestExtractAnswers:
         result = _extract_answers(submission_data)
         assert result[0]["question_id"] is None
         assert result[0]["answer"] == "some answer"
+    def test_passback_rejects_incomplete_job(
+        self, client, mock_table, session_token, instructor_launch
+    ):
+        from uuid import uuid4
+        from src.models.grading_job import GradingJob
+        from src.repositories.grading_job import GradingJobRepository
+
+        job_id = uuid4()
+        GradingJobRepository(table=mock_table).create(
+            GradingJob(
+                job_id=job_id, course_id="C100", quiz_id="Q50", job_name="Still Going"
+            )
+        )
+        response = client.post(
+            f"/lti/passback/{job_id}",
+            json={"launch_id": "some-launch-id"},
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 409
+
+    def test_passback_allowed_on_completed_with_errors(
+        self, client, mock_table, session_token, instructor_launch
+    ):
+        from uuid import uuid4
+        from unittest.mock import patch
+
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        job_id = uuid4()
+        GradingJobRepository(table=mock_table).create(
+            GradingJob(
+                job_id=job_id,
+                course_id="C100",
+                quiz_id="Q50",
+                job_name="Partial",
+                status=JobStatus.COMPLETED_WITH_ERRORS,
+            )
+        )
+
+        with (
+            patch("src.lti.oauth.get_canvas_token", return_value="canvas-tok"),
+            patch(
+                "src.lti.ags.passback_quiz_grades_via_rest",
+                return_value={"submitted": 1, "errors": []},
+            ),
+        ):
+            response = client.post(
+                f"/lti/passback/{job_id}",
+                json={"launch_id": "some-launch-id"},
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+        assert response.status_code == 200

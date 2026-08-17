@@ -53,6 +53,7 @@ def render_instructor_ui(
     .badge-pending {{ background: #fff3cd; color: #856404; }}
     .badge-processing {{ background: #cce5ff; color: #004085; }}
     .badge-done {{ background: #d4edda; color: #155724; }}
+    .badge-partial {{ background: #fff3cd; color: #856404; border: 1px solid #f0d78c; }}
     .badge-failed {{ background: #f8d7da; color: #721c24; }}
     .badge-cancelled {{ background: #b9bdba; color: #666967; }}
     a.authorize-link {{ color: #0066cc; text-decoration: none; }}
@@ -111,6 +112,8 @@ def render_instructor_ui(
     .btn-save:hover {{ background: #004d00; }}
     .btn-revert {{ background: #cc0000; padding: 3px 10px; font-size: 0.82em; }}
     .btn-revert:hover {{ background: #990000; }}
+    tr.row-failed {{ background: #fff5f5; }}
+    tr.row-failed td {{ border-bottom-color: #f5c6cb; }}
     #results-table td:nth-child(2),
     #results-table td:nth-child(3),
     #results-table td:nth-child(7) {{
@@ -218,6 +221,7 @@ def render_instructor_ui(
       </table>
       <br>
       <button id="btn-passback" onclick="pushGrades()">Push Grades to Canvas</button>
+      <button id="btn-retry-failed" style="display:none;" onclick="retryFailed()">Retry Failed Submissions</button>
       <div id="passback-status" class="status hidden"></div>
     </div>
   </div>
@@ -461,6 +465,12 @@ def render_instructor_ui(
             document.getElementById('btn-cancel-grading').style.display = 'none';
 			document.getElementById('btn-start-grading').disabled = true;
             await showResults();
+          }} else if (job.status === 'COMPLETED_WITH_ERRORS') {{
+            clearInterval(pollTimer);
+            setStep(3);
+            document.getElementById('btn-cancel-grading').style.display = 'none';
+            document.getElementById('btn-start-grading').disabled = true;
+            await showResults();
           }} else if (job.status === 'FAILED') {{
             clearInterval(pollTimer);
             document.getElementById('grading-status').textContent =
@@ -562,6 +572,9 @@ def render_instructor_ui(
           const tr = document.createElement('tr');
           tr.dataset.submissionId = sub.submission_id;
           
+          if (sub.grading_status === 'FAILED') {{
+            tr.classList.add('row-failed');
+          }}
           const tdQ = document.createElement('td');
           tdQ.textContent = stripHtml(sub.question_name) || ('Q' + sub.question_id);
           tr.appendChild(tdQ);
@@ -595,6 +608,16 @@ def render_instructor_ui(
               tdG.textContent = '\u2014';
           }}
           tr.appendChild(tdG);
+
+          if (sub.grading_status === 'FAILED') {{
+              const errBadge = document.createElement('span');
+              errBadge.className = 'badge-override';
+              errBadge.style.background = '#f8d7da';
+              errBadge.style.color = '#721c24';
+              errBadge.textContent = 'failed';
+              errBadge.title = sub.grading_error || 'Grading failed';
+              tdG.appendChild(errBadge);
+          }}
 
           const tdM = document.createElement('td');
           tdM.textContent = sub.points_possible;
@@ -631,6 +654,9 @@ def render_instructor_ui(
         tbody.appendChild(tr);
         }});
       }});
+
+      const retryBtn = document.getElementById('btn-retry-failed');
+      retryBtn.style.display = currentJobStatus === 'COMPLETED_WITH_ERRORS' ? 'inline-block' : 'none';
 
       const graded = subs.filter(s => s.effective_grade != null).length;
       document.getElementById('results-summary').textContent =
@@ -687,6 +713,7 @@ def render_instructor_ui(
           badge.classList.add('badge');
           const statusClass = {{
             'COMPLETED': 'badge-done',
+            'COMPLETED_WITH_ERRORS': 'badge-partial'
             'FAILED': 'badge-failed',
             'PROCESSING': 'badge-processing',
             'PENDING': 'badge-pending',
@@ -699,7 +726,7 @@ def render_instructor_ui(
 
           
           const tdAction = document.createElement('td');
-          if (job.status === 'COMPLETED') {{
+          if (job.status === 'COMPLETED' || job.status === 'COMPLETED_WITH_ERRORS') {{
             const btn = document.createElement('button');
             btn.textContent = 'View Results';
             btn.classList.add('btn-small');
@@ -793,6 +820,31 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
       }}
     }}
 
+      async function retryFailed() {{
+        document.getElementById('btn-retry-failed').disabled = true;
+        document.getElementById('grading-status').textContent = 'Retrying failed submissions...';
+        document.getElementById('section-results').classList.add('hidden');
+        document.getElementById('section-grading').classList.remove('hidden');
+        try {{
+            const resp = await fetch(BASE_URL + '/jobs/' + currentJobId + '/retry-failed', {{
+            method: 'POST',
+            headers: authHeaders(),
+            }});
+            if (!resp.ok) {{
+            document.getElementById('grading-status').textContent = await getErrorMessage(resp);
+            document.getElementById('btn-retry-failed').disabled = false;
+            document.getElementById('section-results').classList.remove('hidden');
+            document.getElementById('section-grading').classList.add('hidden');
+            return;
+            }}
+            pollJobStatus();
+        }} catch (e) {{
+            document.getElementById('grading-status').textContent = 'Could not connect. Please try again.';
+            document.getElementById('btn-retry-failed').disabled = false;
+            document.getElementById('section-results').classList.remove('hidden');
+            document.getElementById('section-grading').classList.add('hidden');
+        }}
+        }}
 	if (!IS_AUTHORIZED) {{
 		document.getElementById('tab-btn-grade').style.display = 'none';
 		document.getElementById('tab-grade').innerHTML = '<div class="card"><p>You do not have permission to access this tool.</p></div>';

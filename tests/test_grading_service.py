@@ -117,8 +117,10 @@ class TestGradeJob:
         service.grade_job(job.job_id)
 
         updated_job = job_repo.get(job.job_id)
-        assert updated_job.status == JobStatus.FAILED
-        assert "Failed to grade submission" in updated_job.error_message
+        assert updated_job.status == JobStatus.COMPLETED_WITH_ERRORS
+        assert updated_job.success_count == 1
+        assert updated_job.fail_count == 1
+        assert "Bedrock error" in updated_job.error_message
 
     def test_cancel_pending_job(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
