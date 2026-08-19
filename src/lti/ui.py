@@ -254,6 +254,7 @@ def render_instructor_ui(
 	const ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"];
 	const IS_AUTHORIZED = USER_ROLES.some(r => ALLOWED_ROLES.includes(r));	
     let currentJobId = null;
+    let currentJobStatus = null;
     let pollTimer = null;
     let cameFromHistory = false;
 
@@ -457,12 +458,14 @@ def render_instructor_ui(
           if (job.status === 'COMPLETED') {{
             clearInterval(pollTimer);
             setStep(3);
+            currentJobStatus = job.status;
             document.getElementById('btn-cancel-grading').style.display = 'none';
 			document.getElementById('btn-start-grading').disabled = true;
             await showResults();
           }} else if (job.status === 'COMPLETED_WITH_ERRORS') {{
             clearInterval(pollTimer);
             setStep(3);
+            currentJobStatus = job.status;
             document.getElementById('btn-cancel-grading').style.display = 'none';
             document.getElementById('btn-start-grading').disabled = true;
             await showResults();
@@ -695,7 +698,7 @@ def render_instructor_ui(
           badge.classList.add('badge');
           const statusClass = {{
             'COMPLETED': 'badge-done',
-            'COMPLETED_WITH_ERRORS': 'badge-partial'
+            'COMPLETED_WITH_ERRORS': 'badge-partial',
             'FAILED': 'badge-failed',
             'PROCESSING': 'badge-processing',
             'PENDING': 'badge-pending',
@@ -712,7 +715,7 @@ def render_instructor_ui(
             const btn = document.createElement('button');
             btn.textContent = 'View Results';
             btn.classList.add('btn-small');
-            btn.addEventListener('click', () => viewJobResults(job.job_id, job.job_name));
+            btn.addEventListener('click', () => viewJobResults(job.job_id, job.job_name, job.status));
             tdAction.appendChild(btn);
           }}
           tr.appendChild(tdAction);
@@ -727,9 +730,10 @@ def render_instructor_ui(
     // Open a past job's results in the Grade tab. Hides the quiz selector
     // and grading-progress sections, surfaces the "Back to Past Jobs" link,
     // and reuses showResults() to render the table.
-    async function viewJobResults(jobId, jobName) {{
+    async function viewJobResults(jobId, jobName, status) {{
 	  
       currentJobId = jobId;
+      currentJobStatus = status;
       cameFromHistory = true;
 
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
