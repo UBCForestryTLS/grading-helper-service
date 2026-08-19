@@ -71,8 +71,8 @@ class GradingService:
                 try:
                     future.result()
                     success += 1
-                except Exception:
-                    logger.exception(
+                except Exception as e:
+                    logger.error(
                         "Grading submission failed",
                         job_id=str(job_id),
                         submission_id=str(sub.submission_id),
