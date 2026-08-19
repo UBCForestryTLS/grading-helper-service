@@ -22,6 +22,8 @@ erDiagram
         string created_at
         string updated_at
         string error_message
+        int success_count
+        int fail_count
     }
 
     Submission {
@@ -44,6 +46,8 @@ erDiagram
         string ai_graded_at
         string instructor_grade
         string instructor_feedback
+        string grading_status
+        string grading_error
     }
 
     LTIState {
@@ -117,7 +121,7 @@ erDiagram
 
 - **Partition key:** `GSI2PK` = `STATUS#{status}`
 - **Sort key:** `GSI2SK` = `JOB#{job_id}`
-- **Used by:** `list_by_status()` to find jobs in a specific state (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
+- **Used by:** `list_by_status()` to find jobs in a specific state (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED, COMPLETED_WITH_ERRORS)
 - **Projection:** ALL
 - **Note:** When a job's status changes, the repository updates `GSI2PK` in the same `update_item` call so the GSI stays consistent
 
@@ -146,22 +150,25 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 | `quiz_id` | `str` | Canvas quiz ID |
 | `assignment_id` | `str` | Canvas assignment ID (used for AGS lineitem matching) |
 | `job_name` | `str` | Human-readable name |
-| `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, or `CANCELLED` |
+| `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, `COMPLETED_WITH_ERRORS`, or `FAILED` |
 | `total_questions` | `int` | Number of questions in the quiz |
 | `total_submissions` | `int` | Number of student submissions |
 | `created_at` | `datetime` | UTC timestamp |
 | `updated_at` | `datetime` | UTC timestamp, updated on status change |
-| `error_message` | `str | None` | Error details if status is FAILED |
+| `error_message` | `str | None` | Error details if a submission FAILED to grade |
+| `success_count` | `int` | Number of submissions successfully graded |
+| `fail_count` | `int` | Number of submissions that failed to grade |
 
 ### JobStatus
 
-`StrEnum` with four values:
+`StrEnum` with five values:
 
 - `PENDING` — job created, waiting to be graded
 - `PROCESSING` — Bedrock calls in progress
 - `COMPLETED` — all submissions graded successfully
-- `FAILED` — one or more submissions failed to grade (error_message has details)
 - `CANCELLED` — job cancelled successfully
+- `FAILED` — all submissions failed to grade (error_message has details)
+- `COMPLETED_WITH_ERRORS` — atleast one submission graded successfully and atleast one failed
 
 ### GradingJobCreate
 
@@ -202,6 +209,8 @@ One student answer to one question. Defined in `src/models/submission.py`.
 | `effective_feedback` | `str \| None` | Returns instructor feedback if set, otherwise AI feedback |
 | `overridden_by` | `str \| None` | Canvas user ID of the instructor/TA who performed the override |
 | `overridden_at` | `datetime \| None` | When the Instructor override was done |
+| `grading_status` | `GradingStatus` | Current grading state: `PENDING`, `GRADED`, or `FAILED` |
+| `grading_error` | `str \| None` | Error message when submission grading fails |
 
 ### SessionUser
 
