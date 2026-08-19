@@ -246,9 +246,9 @@ def render_instructor_ui(
     const SESSION_TOKEN = document.querySelector('meta[name="session-token"]').getAttribute('content');
     const BASE_URL = '{safe_base_url}';
     const LAUNCH_ID = '{safe_launch_id}';
-	const USER_ROLES = {list(roles)};
-	const ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"];
-	const IS_AUTHORIZED = USER_ROLES.some(r => ALLOWED_ROLES.includes(r));	
+    const USER_ROLES = {list(roles)};
+    const ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"];
+    const IS_AUTHORIZED = USER_ROLES.some(r => ALLOWED_ROLES.includes(r));	
     let currentJobId = null;
     let pollTimer = null;
     let cameFromHistory = false;
@@ -268,8 +268,13 @@ def render_instructor_ui(
       if (value == null) return '';
       const s = String(value);
       if (s.indexOf('<') === -1) return s;
+
+      // detached nodes can still trigger requests (e.g. <img src="..." /> elements)
+      // thus, attempt to remove tags via regex as an extra safety precaution
+      const sNoTags = s.replace(/<\/*[^>]*\/*>/gm, "");
+
       const tmp = document.createElement('div');
-      tmp.innerHTML = s;
+      tmp.innerHTML = sNoTags;
       return (tmp.textContent || tmp.innerText || '').trim();
     }}
 
@@ -571,10 +576,16 @@ def render_instructor_ui(
 
           const tdG = document.createElement('td');
           tdG.id = 'grade-cell-' + sub.submission_id;
-          const isOverridden = sub.instructor_grade != null;
+
+          const isOverridden = sub.instructor_grade != null 
+            || (
+                typeof sub.instructor_feedback == "string" 
+                && sub.instructor_feedback.trim().length > 0
+            );
+
           if (sub.effective_grade != null) {{
               tdG.textContent = sub.effective_grade;
-              if (isOverridden) {{
+              if (sub.instructor_grade != null) {{
               const badge = document.createElement('span');
               badge.className = 'badge-override';
               badge.textContent = 'edited';
@@ -613,7 +624,7 @@ def render_instructor_ui(
           ${{isOverridden ? `<button class="btn-revert" onclick="revertOverride('${{currentJobId}}', '${{sub.submission_id}}')">Revert</button>` : ''}}
         </div>
         <div id="override-msg-${{sub.submission_id}}" class="status"></div>
-        ${{isOverridden ? `<div class="override-info" style="font-size:0.8rem; color:#666; margin-top:4px;">Last override by ${{sub.overridden_by || 'unknown'}}</div>` : ''}}
+        ${{isOverridden ? `<div class="override-info" style="font-size:0.8rem; color:#666; margin-top:4px;">Last override by user ${{sub.overridden_by || 'unknown'}}</div>` : ''}}
         </div>
         `;
         tr.appendChild(tdO);
@@ -867,7 +878,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
                 overrideInfo.style.cssText = 'font-size:0.8rem; color:#666; margin-top:4px;';
                 overrideForm.appendChild(overrideInfo);
             }}
-            overrideInfo.textContent = 'Last override by ' + (updated.overridden_by || 'unknown');
+            overrideInfo.textContent = 'Last override by user ' + (updated.overridden_by || 'unknown');
 
         }} catch (e) {{
             msgEl.textContent = 'Could not connect. Please try again.';
