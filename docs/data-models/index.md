@@ -212,6 +212,14 @@ One student answer to one question. Defined in `src/models/submission.py`.
 | `grading_status` | `GradingStatus` | Current grading state: `PENDING`, `GRADED`, or `FAILED` |
 | `grading_error` | `str \| None` | Error message when submission grading fails |
 
+### GradingStatus
+
+`StrEnum` with three values:
+
+- `PENDING` — submission has not been graded yet
+- `GRADED` — submission graded successfully
+- `FAILED` — submission failed to grade (`grading_error` has details)
+
 ### SessionUser
 
 Decoded session token payload. Defined in `src/auth/session.py`.
