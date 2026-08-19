@@ -551,6 +551,7 @@ class TestPassback:
             )
         assert response.status_code == 200
 
+
 class TestExtractAnswers:
     """Tests for _extract_answers function."""
 
