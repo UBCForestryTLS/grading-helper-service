@@ -1,6 +1,7 @@
 """LTI 1.3 endpoints: OIDC login, launch, JWKS, tool configuration, and Canvas integration."""
 
 from html import escape
+import re
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -23,6 +24,8 @@ from src.models.grading_job import JobStatus
 
 router = APIRouter(prefix="/lti", tags=["lti"])
 jwks_router = APIRouter(tags=["lti"])
+LATEX_PATTERN = re.compile(r"\\[a-zA-Z]+")
+CONTROL_CHARACTER_PATTERN = re.compile(r"[\x00-\x08\x0b-\x0c\x0e-\x1f]")
 
 
 @router.get("/login")
@@ -198,6 +201,16 @@ def lti_config():
 
 
 # --- Canvas integration routes ---
+def _sanitize_answer(text: str) -> str:
+    """
+    Strip Latex commands and escape backslashes to sanitize student answers
+    """
+    if not text:
+        return ""
+    text = text.replace("\\", "\\\\")
+    text = LATEX_PATTERN.sub("", text)
+    text = CONTROL_CHARACTER_PATTERN.sub("", text)
+    return text.strip()
 
 
 def _extract_answers(submission_data: list[dict]) -> list[dict]:
@@ -211,14 +224,14 @@ def _extract_answers(submission_data: list[dict]) -> list[dict]:
     for item in submission_data:
         question_id = item.get("question_id")
         # Primary answer field
-        answer = item.get("text", "")
+        answer = _sanitize_answer(item.get("text", ""))
 
         # For fill_in_multiple_blanks, text is empty — collect answer_for_* fields
         if not answer:
             blank_answers = []
             for key, value in item.items():
                 if key.startswith("answer_for_") and value:
-                    blank_answers.append(str(value))
+                    blank_answers.append(_sanitize_answer(str(value)))
             if blank_answers:
                 answer = "; ".join(blank_answers)
 

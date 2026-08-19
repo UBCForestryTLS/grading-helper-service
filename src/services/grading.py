@@ -71,12 +71,11 @@ class GradingService:
                 try:
                     future.result()
                     success += 1
-                except Exception as e:
-                    logger.error(
+                except Exception:
+                    logger.exception(
                         "Grading submission failed",
                         job_id=str(job_id),
                         submission_id=str(sub.submission_id),
-                        error=str(e),
                     )
                     errors.append(f"Submission {sub.submission_id}: {e}")
                     self.sub_repo.mark_failed(job_id, sub.submission_id, str(e))
@@ -217,6 +216,26 @@ class GradingService:
                 "max_tokens": 512,
                 "temperature": 0,
                 "messages": [{"role": "user", "content": prompt}],
+                "output_config": {
+                    "format": {
+                        "type": "json_schema",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "grade": {
+                                    "type": "number",
+                                    "description": "points awarded to student based on their answer, limited to maximum points possible",
+                                },
+                                "feedback": {
+                                    "type": "string",
+                                    "description": "feedback for student explaining why their answer is correct or incorrect",
+                                },
+                            },
+                            "required": ["grade", "feedback"],
+                            "additionalProperties": False,
+                        },
+                    }
+                },
             }
         )
         response = self.bedrock_client.invoke_model(
@@ -245,7 +264,14 @@ class GradingService:
                 lines = lines[:-1]
             text = "\n".join(lines)
 
-        parsed = json.loads(text)
+        try:
+            parsed = json.loads(text)
+        except Exception:
+            logger.exception(
+                "Failed to parse Bedrock response text",
+                raw_text=text,
+            )
+            raise
         grade = float(parsed["grade"])
         feedback = str(parsed["feedback"])
 

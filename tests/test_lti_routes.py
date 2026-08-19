@@ -13,6 +13,7 @@ from moto import mock_aws
 from src.api.app import create_app
 from src.auth.session import _get_public_key
 from src.lti.key_manager import get_private_key, get_public_jwk
+from src.lti.routes import _extract_answers
 
 
 @pytest.fixture
@@ -549,3 +550,63 @@ class TestPassback:
                 headers={"Authorization": f"Bearer {session_token}"},
             )
         assert response.status_code == 200
+
+class TestExtractAnswers:
+    """Tests for _extract_answers function."""
+
+    def test_basic_text_answer(self):
+        submission_data = [{"question_id": 1, "text": "The sweet gum tree"}]
+        result = _extract_answers(submission_data)
+        assert result == [{"question_id": 1, "answer": "The sweet gum tree"}]
+
+    def test_latex_answer_is_sanitized(self):
+        submission_data = [{"question_id": 2, "text": r"f(\alpha\placeholder)"}]
+        result = _extract_answers(submission_data)
+        assert "\\placeholder" not in result[0]["answer"]
+        assert "\\alpha" not in result[0]["answer"]
+
+    def test_fill_in_blank_answer(self):
+        submission_data = [
+            {
+                "question_id": 3,
+                "text": "",
+                "answer_for_blank1": "photosynthesis",
+                "answer_for_blank2": "chlorophyll",
+            }
+        ]
+        result = _extract_answers(submission_data)
+        assert result[0]["question_id"] == 3
+        assert "photosynthesis" in result[0]["answer"]
+        assert "chlorophyll" in result[0]["answer"]
+
+    def test_fill_in_blank_answer_is_sanitized(self):
+        submission_data = [
+            {
+                "question_id": 4,
+                "text": "",
+                "answer_for_blank1": r"\alpha value",
+            }
+        ]
+        result = _extract_answers(submission_data)
+        assert "\\alpha" not in result[0]["answer"]
+
+    def test_empty_text_and_no_blanks(self):
+        submission_data = [{"question_id": 5, "text": ""}]
+        result = _extract_answers(submission_data)
+        assert result == [{"question_id": 5, "answer": ""}]
+
+    def test_multiple_submissions(self):
+        submission_data = [
+            {"question_id": 1, "text": "A piano"},
+            {"question_id": 2, "text": "The letter M"},
+        ]
+        result = _extract_answers(submission_data)
+        assert len(result) == 2
+        assert result[0] == {"question_id": 1, "answer": "A piano"}
+        assert result[1] == {"question_id": 2, "answer": "The letter M"}
+
+    def test_missing_question_id(self):
+        submission_data = [{"text": "some answer"}]
+        result = _extract_answers(submission_data)
+        assert result[0]["question_id"] is None
+        assert result[0]["answer"] == "some answer"
