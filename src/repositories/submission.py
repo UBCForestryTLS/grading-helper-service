@@ -1,6 +1,6 @@
 """DynamoDB repository for Submission entities."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from boto3.dynamodb.conditions import Key
@@ -45,6 +45,15 @@ class SubmissionRepository:
             item["ai_feedback"] = sub.ai_feedback
         if sub.ai_graded_at is not None:
             item["ai_graded_at"] = sub.ai_graded_at.isoformat()
+
+        if sub.instructor_grade is not None:
+            item["instructor_grade"] = str(sub.instructor_grade)
+        if sub.instructor_feedback is not None:
+            item["instructor_feedback"] = sub.instructor_feedback
+        if sub.overridden_by is not None:
+            item["overridden_by"] = sub.overridden_by
+        if sub.overridden_at is not None:
+            item["overridden_at"] = sub.overridden_at.isoformat()
         return item
 
     def _from_item(self, item: dict) -> Submission:
@@ -67,6 +76,16 @@ class SubmissionRepository:
             ai_graded_at=(
                 datetime.fromisoformat(item["ai_graded_at"])
                 if item.get("ai_graded_at")
+                else None
+            ),
+            instructor_grade=float(item["instructor_grade"])
+            if item.get("instructor_grade")
+            else None,
+            instructor_feedback=item.get("instructor_feedback"),
+            overridden_by=item.get("overridden_by"),
+            overridden_at=(
+                datetime.fromisoformat(item["overridden_at"])
+                if item.get("overridden_at")
                 else None
             ),
         )
@@ -110,3 +129,36 @@ class SubmissionRepository:
                 ":graded_at": ai_graded_at.isoformat(),
             },
         )
+
+    def set_override(
+        self,
+        job_id: UUID,
+        submission_id: UUID,
+        grade: float | None,
+        feedback: str | None,
+        overridden_by: str,
+    ) -> Submission:
+        now = datetime.now(timezone.utc)
+        update_expr_parts = ["overridden_by = :ob", "overridden_at = :oa"]
+        expr_values = {":ob": overridden_by, ":oa": now.isoformat()}
+
+        if grade is not None:
+            update_expr_parts.append("instructor_grade = :ig")
+            expr_values[":ig"] = str(grade)
+        if feedback is not None:
+            update_expr_parts.append("instructor_feedback = :ifb")
+            expr_values[":ifb"] = feedback
+
+        self.table.update_item(
+            Key={"pk": f"JOB#{job_id}", "sk": f"SUB#{submission_id}"},
+            UpdateExpression="SET " + ", ".join(update_expr_parts),
+            ExpressionAttributeValues=expr_values,
+        )
+        return self.get(job_id, submission_id)
+
+    def clear_override(self, job_id: UUID, submission_id: UUID) -> Submission:
+        self.table.update_item(
+            Key={"pk": f"JOB#{job_id}", "sk": f"SUB#{submission_id}"},
+            UpdateExpression="REMOVE instructor_grade, instructor_feedback, overridden_by, overridden_at",
+        )
+        return self.get(job_id, submission_id)

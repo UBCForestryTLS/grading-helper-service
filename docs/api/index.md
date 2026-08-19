@@ -150,10 +150,32 @@ List all submissions for a grading job, including AI grades and feedback if grad
     "canvas_user_id": "42",
     "ai_grade": 4.5,
     "ai_feedback": "Good understanding of the core concept...",
-    "ai_graded_at": "2026-03-10T15:35:00+00:00"
+    "ai_graded_at": "2026-03-10T15:35:00+00:00",
+    "instructor_grade": 5.0,
+    "instructor_feedback": "Excellent explanation.",
+    "effective_grade": 5.0,
+    "effective_feedback": "Excellent explanation."
   }
 ]
 ```
+
+### `PATCH /jobs/{job_id}/submissions/{submission_id}`
+
+Lets instructor set or clear a grade/feedback override on a single submission.
+
+- **Auth:** Required
+- **Errors:** 404 if job or submission not found, 403 if wrong course, 422 if grade is out of range
+
+**Request body example:**
+```json
+{
+  "grade": 8.5,
+  "feedback": "Good explanation. Added points for the correct example.",
+  "revert": false
+}
+```
+
+**Response:** Updated `Submission` object
 
 ---
 

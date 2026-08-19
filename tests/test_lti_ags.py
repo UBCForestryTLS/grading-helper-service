@@ -744,3 +744,122 @@ class TestPassbackQuizGradesViaRest:
         assert result["submitted"] == 0
         assert len(result["errors"]) == 1
         assert "Canvas 403 Forbidden" in result["errors"][0]
+
+    def test_passback_rest_uses_effective_grade_with_override(self, monkeypatch):
+        from uuid import uuid4
+        from src.models.submission import Submission
+        from src.lti.ags import passback_quiz_grades_via_rest
+
+        job_id = uuid4()
+        sub = Submission(
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="text",
+            points_possible=10.0,
+            student_answer="answer",
+            canvas_points=0.0,
+            correct_answers=[],
+            canvas_user_id="u1",
+            quiz_submission_id=55,
+            attempt=1,
+            ai_grade=6.0,
+            ai_feedback="AI feedback",
+            instructor_grade=9.0,
+            instructor_feedback="Instructor feedback",
+        )
+
+        class FakeRepo:
+            def list_by_job(self, jid):
+                return [sub]
+
+        calls = []
+
+        class FakeClient:
+            def __init__(self, *a, **k):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def update_quiz_submission_scores(self, **kwargs):
+                calls.append(kwargs)
+
+        monkeypatch.setattr("src.lti.canvas_api.CanvasAPIClient", FakeClient)
+
+        result = passback_quiz_grades_via_rest(
+            job_id=str(job_id),
+            quiz_id="1",
+            course_id="1",
+            canvas_token="tok",
+            canvas_url="https://canvas.example.com",
+            submission_repo=FakeRepo(),
+        )
+
+        assert result["submitted"] == 1
+        sent_questions = calls[0]["questions"]
+        assert sent_questions[1]["score"] == 9.0  # instructor override, not 6.0
+        assert sent_questions[1]["comment"] == "Instructor feedback"
+
+    def test_passback_rest_falls_back_to_ai_grade_without_override(self, monkeypatch):
+        from uuid import uuid4
+        from src.models.submission import Submission
+        from src.lti.ags import passback_quiz_grades_via_rest
+
+        job_id = uuid4()
+        sub = Submission(
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="text",
+            points_possible=10.0,
+            student_answer="answer",
+            canvas_points=0.0,
+            correct_answers=[],
+            canvas_user_id="u1",
+            quiz_submission_id=55,
+            attempt=1,
+            ai_grade=6.0,
+            ai_feedback="AI feedback",
+        )
+
+        class FakeRepo:
+            def list_by_job(self, jid):
+                return [sub]
+
+        calls = []
+
+        class FakeClient:
+            def __init__(self, *a, **k):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def update_quiz_submission_scores(self, **kwargs):
+                calls.append(kwargs)
+
+        monkeypatch.setattr("src.lti.canvas_api.CanvasAPIClient", FakeClient)
+
+        result = passback_quiz_grades_via_rest(
+            job_id=str(job_id),
+            quiz_id="1",
+            course_id="1",
+            canvas_token="tok",
+            canvas_url="https://canvas.example.com",
+            submission_repo=FakeRepo(),
+        )
+
+        sent_questions = calls[0]["questions"]
+        assert sent_questions[1]["score"] == 6.0
+        assert result["submitted"] == 1
+        assert calls[0]["questions"][1]["score"] == 6.0
+        assert calls[0]["questions"][1]["comment"] == "AI feedback"

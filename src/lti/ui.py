@@ -98,10 +98,22 @@ def render_instructor_ui(
     .btn-link {{ background: none; border: none; color: #0066cc; cursor: pointer;
                  font-size: 0.9em; padding: 0; }}
     .btn-link:hover {{ text-decoration: underline; background: none; }}
-
+    .overridden {{ color: #0066cc; font-weight: 600; }}
+    .badge-override {{ background: #e8f0fe; color: #1a56db; font-size: 0.75em; 
+                    padding: 1px 6px; border-radius: 10px; margin-left: 4px; }}
+    .override-form {{ display: flex; flex-direction: column; gap: 4px; min-width: 160px; }}
+    .override-form input {{ padding: 4px 6px; font-size: 0.85rem; border: 1px solid #ccc;
+                            border-radius: 4px; width: 70px; }}
+    .override-form textarea {{ padding: 4px 6px; font-size: 0.85rem; border: 1px solid #ccc;
+                            border-radius: 4px; resize: vertical; width: 100%; }}
+    .override-form .btn-row {{ display: flex; gap: 4px; }}
+    .btn-save {{ background: #006600; padding: 3px 10px; font-size: 0.82em; }}
+    .btn-save:hover {{ background: #004d00; }}
+    .btn-revert {{ background: #cc0000; padding: 3px 10px; font-size: 0.82em; }}
+    .btn-revert:hover {{ background: #990000; }}
     #results-table td:nth-child(2),
     #results-table td:nth-child(3),
-    #results-table td:nth-child(6) {{
+    #results-table td:nth-child(7) {{
       max-width: 250px; word-break: break-word;
     }}
     #history-table tbody tr:hover {{ background: #f8f8f8; }}
@@ -196,9 +208,10 @@ def render_instructor_ui(
             <th>Question</th>
             <th>Question Text</th>
             <th>Student Answer</th>
-            <th>AI Grade</th>
+            <th>Grade</th>
             <th>Max</th>
             <th>Feedback</th>
+            <th>Override</th>
           </tr>
         </thead>
         <tbody id="results-tbody"></tbody>
@@ -502,7 +515,7 @@ def render_instructor_ui(
       order.forEach(uid => {{
         let s = 0, m = 0;
         groups[uid].forEach(sub => {{
-          if (sub.ai_grade != null) s += sub.ai_grade;
+          if (sub.effective_grade != null) s += sub.effective_grade;
           m += sub.points_possible;
         }});
         if (m > 0) {{
@@ -527,14 +540,14 @@ def render_instructor_ui(
         let studentScore = 0;
         let studentMax = 0;
         studentSubs.forEach(s => {{
-          if (s.ai_grade != null) studentScore += s.ai_grade;
+          if (s.effective_grade != null) studentScore += s.effective_grade;
           studentMax += s.points_possible;
         }});
 
         const headerRow = document.createElement('tr');
         headerRow.classList.add('student-header');
         const headerTd = document.createElement('td');
-        headerTd.colSpan = 6;
+        headerTd.colSpan = 7;
         headerTd.textContent = 'Student ' + uid + '  \u2014  ' +
           studentScore.toFixed(1) + ' / ' + studentMax.toFixed(1) + ' points';
         headerRow.appendChild(headerTd);
@@ -542,23 +555,73 @@ def render_instructor_ui(
 
         studentSubs.forEach(sub => {{
           const tr = document.createElement('tr');
-          [
-            stripHtml(sub.question_name) || ('Q' + sub.question_id),
-            stripHtml(sub.question_text) || '\u2014',
-            stripHtml(sub.student_answer),
-            sub.ai_grade != null ? sub.ai_grade : '\u2014',
-            sub.points_possible,
-            stripHtml(sub.ai_feedback) || '\u2014',
-          ].forEach(val => {{
-            const td = document.createElement('td');
-            td.textContent = val;
-            tr.appendChild(td);
-          }});
-          tbody.appendChild(tr);
+          tr.dataset.submissionId = sub.submission_id;
+          
+          const tdQ = document.createElement('td');
+          tdQ.textContent = stripHtml(sub.question_name) || ('Q' + sub.question_id);
+          tr.appendChild(tdQ);
+
+          const tdQT = document.createElement('td');
+          tdQT.textContent = stripHtml(sub.question_text) || '\u2014';
+          tr.appendChild(tdQT);
+
+          const tdA = document.createElement('td');
+          tdA.textContent = stripHtml(sub.student_answer);
+          tr.appendChild(tdA);
+
+          const tdG = document.createElement('td');
+          tdG.id = 'grade-cell-' + sub.submission_id;
+          const isOverridden = sub.instructor_grade != null;
+          if (sub.effective_grade != null) {{
+              tdG.textContent = sub.effective_grade;
+              if (isOverridden) {{
+              const badge = document.createElement('span');
+              badge.className = 'badge-override';
+              badge.textContent = 'edited';
+              tdG.appendChild(badge);
+              }}
+          }} else {{
+              tdG.textContent = '\u2014';
+          }}
+          tr.appendChild(tdG);
+
+          const tdM = document.createElement('td');
+          tdM.textContent = sub.points_possible;
+          tr.appendChild(tdM);
+
+          const tdF = document.createElement('td');
+          tdF.id = 'feedback-cell-' + sub.submission_id;
+          tdF.textContent = stripHtml(sub.effective_feedback) || '\u2014';
+          if (sub.instructor_feedback) {{
+              const feedbackBadge = document.createElement('span');
+              feedbackBadge.className = 'badge-override';
+              feedbackBadge.textContent = 'edited';
+              tdF.appendChild(feedbackBadge);
+          }}
+          tr.appendChild(tdF);
+
+          const tdO = document.createElement('td');
+          tdO.innerHTML = `
+          <div class="override-form">
+          <input type="number" id="input-grade-${{sub.submission_id}}"
+                 placeholder="Grade" min="0" max="${{sub.points_possible}}"
+                 step="0.5" value="${{sub.instructor_grade != null ? sub.instructor_grade : ''}}">
+          <textarea id="input-feedback-${{sub.submission_id}}"
+                    placeholder="Feedback" rows="2">${{sub.instructor_feedback != null ? sub.instructor_feedback : ''}}</textarea>
+          <div class="btn-row">
+          <button class="btn-save" onclick="saveOverride('${{currentJobId}}', '${{sub.submission_id}}', ${{sub.points_possible}})">Save</button>
+          ${{isOverridden ? `<button class="btn-revert" onclick="revertOverride('${{currentJobId}}', '${{sub.submission_id}}')">Revert</button>` : ''}}
+        </div>
+        <div id="override-msg-${{sub.submission_id}}" class="status"></div>
+        ${{isOverridden ? `<div class="override-info" style="font-size:0.8rem; color:#666; margin-top:4px;">Last override by ${{sub.overridden_by || 'unknown'}}</div>` : ''}}
+        </div>
+        `;
+        tr.appendChild(tdO);
+        tbody.appendChild(tr);
         }});
       }});
 
-      const graded = subs.filter(s => s.ai_grade != null).length;
+      const graded = subs.filter(s => s.effective_grade != null).length;
       document.getElementById('results-summary').textContent =
         graded + ' of ' + subs.length + ' answers graded.';
       document.getElementById('section-results').classList.remove('hidden');
@@ -724,6 +787,140 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
 		document.getElementById('tab-grade').innerHTML = '<div class="card"><p>You do not have permission to access this tool.</p></div>';
 	}}
     
+    async function saveOverride(jobId, submissionId, pointsPossible) {{
+        const gradeInput = document.getElementById('input-grade-' + submissionId);
+        const feedbackInput = document.getElementById('input-feedback-' + submissionId);
+        const msgEl = document.getElementById('override-msg-' + submissionId);
+
+        const grade = gradeInput.value !== '' ? parseFloat(gradeInput.value) : null;
+        const feedback = feedbackInput.value.trim() || null;
+
+        if (grade === null && feedback === null) {{
+            msgEl.textContent = 'Enter a grade or feedback to save.';
+            msgEl.style.color = '#cc0000';
+            return;
+        }}
+
+        if (grade !== null && (grade < 0 || grade > pointsPossible)) {{
+            msgEl.textContent = 'Grade must be between 0 and ' + pointsPossible + '.';
+            msgEl.style.color = '#cc0000';
+            return;
+        }}
+
+        msgEl.textContent = 'Saving...';
+        msgEl.style.color = '#555';
+
+        try {{
+            const body = {{}};
+            if (grade !== null) body.grade = grade;
+            if (feedback !== null) body.feedback = feedback;
+
+            const resp = await fetch(BASE_URL + '/jobs/' + jobId + '/submissions/' + submissionId, {{
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify(body),
+            }});
+
+            if (!resp.ok) {{
+            msgEl.textContent = await getErrorMessage(resp);
+            msgEl.style.color = '#cc0000';
+            return;
+            }}
+
+            const updated = await resp.json();
+            msgEl.textContent = 'Saved.';
+            msgEl.style.color = '#006600';
+
+            const gradeCell = document.getElementById('grade-cell-' + submissionId);
+            gradeCell.textContent = updated.effective_grade != null ? updated.effective_grade : '\u2014';
+            if (updated.instructor_grade != null) {{
+            const badge = document.createElement('span');
+            badge.className = 'badge-override';
+            badge.textContent = 'edited';
+            gradeCell.appendChild(badge);
+            }}
+    
+            const feedbackCell = document.getElementById('feedback-cell-' + submissionId);
+            feedbackCell.textContent = stripHtml(updated.effective_feedback) || '\u2014';
+            if (updated.instructor_feedback) {{
+                const feedbackBadge = document.createElement('span');
+                feedbackBadge.className = 'badge-override';
+                feedbackBadge.textContent = 'edited';
+                feedbackCell.appendChild(feedbackBadge);
+            }}
+
+            const overrideForm = gradeInput.closest('.override-form');
+            const btnRow = overrideForm.querySelector('.btn-row');
+            if (!btnRow.querySelector('.btn-revert')) {{
+                const revertBtn = document.createElement('button');
+                revertBtn.className = 'btn-revert';
+                revertBtn.textContent = 'Revert';
+                revertBtn.onclick = () => revertOverride(jobId, submissionId);
+                btnRow.appendChild(revertBtn);
+            }}
+
+
+            let overrideInfo = overrideForm.querySelector('.override-info');
+            if (!overrideInfo) {{
+                overrideInfo = document.createElement('div');
+                overrideInfo.className = 'override-info';
+                overrideInfo.style.cssText = 'font-size:0.8rem; color:#666; margin-top:4px;';
+                overrideForm.appendChild(overrideInfo);
+            }}
+            overrideInfo.textContent = 'Last override by ' + (updated.overridden_by || 'unknown');
+
+        }} catch (e) {{
+            msgEl.textContent = 'Could not connect. Please try again.';
+            msgEl.style.color = '#cc0000';
+        }}
+    }}
+
+    async function revertOverride(jobId, submissionId, pointsPossible){{
+        if (!confirm('Are you sure you want to revert this override? The AI grade and feedback will be restored.')) {{
+            return;
+        }}
+        const msgEl = document.getElementById('override-msg-' + submissionId);
+        msgEl.textContent = 'Reverting...';
+        msgEl.style.color = '#555';
+
+        try {{
+            const resp = await fetch(BASE_URL + '/jobs/' + jobId + '/submissions/' + submissionId, {{
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify({{ revert: true }}),
+            }});
+
+            if (!resp.ok) {{
+            msgEl.textContent = await getErrorMessage(resp);
+            msgEl.style.color = '#cc0000';
+            return;
+            }}
+
+            const updated = await resp.json();
+            msgEl.textContent = 'Reverted to AI grade.';
+            msgEl.style.color = '#006600';
+            
+            const gradeCell = document.getElementById('grade-cell-' + submissionId);
+            gradeCell.textContent = updated.effective_grade != null ? updated.effective_grade : '\u2014';
+
+            document.getElementById('feedback-cell-' + submissionId).textContent =
+            stripHtml(updated.effective_feedback) || '\u2014';
+
+            document.getElementById('input-grade-' + submissionId).value = '';
+            document.getElementById('input-feedback-' + submissionId).value = '';
+            
+            const gradeInput = document.getElementById('input-grade-' + submissionId);
+            const overrideForm = gradeInput.closest('.override-form');
+            const revertBtn = overrideForm.querySelector('.btn-revert');
+            if (revertBtn) revertBtn.remove();
+            const overrideInfo = overrideForm.querySelector('.override-info');
+            if (overrideInfo) overrideInfo.remove();
+
+        }} catch (e) {{
+            msgEl.textContent = 'Could not connect. Please try again.';
+            msgEl.style.color = '#cc0000';
+        }}
+    }}
   </script>
 </body>
 </html>"""

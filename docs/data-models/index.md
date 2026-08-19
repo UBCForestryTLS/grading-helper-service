@@ -42,6 +42,8 @@ erDiagram
         string ai_grade
         string ai_feedback
         string ai_graded_at
+        string instructor_grade
+        string instructor_feedback
     }
 
     LTIState {
@@ -99,6 +101,8 @@ erDiagram
 | Get launch context | `pk=LAUNCH#{id}`, `sk=LAUNCH` | `LaunchStore.get()` |
 | Get Canvas OAuth token | `pk=CANVAS_TOKEN#{user}`, `sk=COURSE#{course}` | `get_canvas_token()` |
 | Check instructor role | `pk=LAUNCH#{launch_id}`, `sk=LAUNCH` | `require_instructor()` |
+| Set instructor override | `pk=JOB#{job_id}`, `sk=SUB#{sub_id}` | `SubmissionRepository.set_override()` |
+| Clear instructor override | `pk=JOB#{job_id}`, `sk=SUB#{sub_id}` | `SubmissionRepository.clear_override()` |
 
 ## GSI Design
 
@@ -113,7 +117,7 @@ erDiagram
 
 - **Partition key:** `GSI2PK` = `STATUS#{status}`
 - **Sort key:** `GSI2SK` = `JOB#{job_id}`
-- **Used by:** `list_by_status()` to find jobs in a specific state (PENDING, PROCESSING, COMPLETED, FAILED)
+- **Used by:** `list_by_status()` to find jobs in a specific state (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
 - **Projection:** ALL
 - **Note:** When a job's status changes, the repository updates `GSI2PK` in the same `update_item` call so the GSI stays consistent
 
@@ -142,7 +146,7 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 | `quiz_id` | `str` | Canvas quiz ID |
 | `assignment_id` | `str` | Canvas assignment ID (used for AGS lineitem matching) |
 | `job_name` | `str` | Human-readable name |
-| `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, or `FAILED` |
+| `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, or `CANCELLED` |
 | `total_questions` | `int` | Number of questions in the quiz |
 | `total_submissions` | `int` | Number of student submissions |
 | `created_at` | `datetime` | UTC timestamp |
@@ -157,6 +161,7 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 - `PROCESSING` — Bedrock calls in progress
 - `COMPLETED` — all submissions graded successfully
 - `FAILED` — one or more submissions failed to grade (error_message has details)
+- `CANCELLED` — job cancelled successfully
 
 ### GradingJobCreate
 
@@ -188,9 +193,15 @@ One student answer to one question. Defined in `src/models/submission.py`.
 | `canvas_user_id` | `str` | Canvas user ID (for grade passback) |
 | `quiz_submission_id` | `int` | Canvas quiz submission ID (used for REST-based grade passback; 0 if not set) |
 | `attempt` | `int` | Quiz submission attempt number (default 1) |
-| `ai_grade` | `float | None` | AI-assigned grade (clamped to 0..points_possible) |
-| `ai_feedback` | `str | None` | AI-generated feedback text |
-| `ai_graded_at` | `datetime | None` | When the AI grading was performed |
+| `ai_grade` | `float \| None` | AI-assigned grade (clamped to 0..points_possible) |
+| `ai_feedback` | `str \| None` | AI-generated feedback text |
+| `ai_graded_at` | `datetime \| None` | When the AI grading was performed |
+| `instructor_grade` | `float \| None` | Grade set by instructor override, replaces AI grade when present |
+| `instructor_feedback` | `str \| None` | feedback set by instructor override. replaces AI feedback when present |
+| `effective_grade` | `float \| None` | Returns instructor grade if set, otherwise AI grade|
+| `effective_feedback` | `str \| None` | Returns instructor feedback if set, otherwise AI feedback |
+| `overridden_by` | `str \| None` | Canvas user ID of the instructor/TA who performed the override |
+| `overridden_at` | `datetime \| None` | When the Instructor override was done |
 
 ### SessionUser
 

@@ -303,3 +303,71 @@ class TestSubmissionRepository:
         result = repo.get(job_id, sub.submission_id)
         assert result.points_possible == 3.14
         assert result.canvas_points == 2.71
+
+    def test_set_and_clear_override(self, dynamodb_table):
+        repo = SubmissionRepository(table=dynamodb_table)
+        job_id = uuid4()
+        sub = Submission(
+            job_id=job_id,
+            question_id=101,
+            question_name="Q1",
+            question_type="short_answer_question",
+            question_text="What is X?",
+            points_possible=10.0,
+            student_answer="My answer",
+            canvas_points=5.0,
+            correct_answers=["X"],
+            ai_grade=6.0,
+            ai_feedback="AI feedback",
+        )
+        repo.batch_create([sub])
+
+        updated = repo.set_override(
+            job_id,
+            sub.submission_id,
+            grade=8.5,
+            feedback="Good work but check citation 3",
+            overridden_by="instructor_123",
+        )
+        assert updated.instructor_grade == 8.5
+        assert updated.instructor_feedback == "Good work but check citation 3"
+        assert updated.overridden_by == "instructor_123"
+        assert updated.effective_grade == 8.5
+        assert updated.effective_feedback == "Good work but check citation 3"
+
+        cleared = repo.clear_override(job_id, sub.submission_id)
+        assert cleared.instructor_grade is None
+        assert cleared.effective_grade == cleared.ai_grade
+        assert cleared.effective_feedback == cleared.ai_feedback
+
+    def test_override_persists_across_separate_get(self, dynamodb_table):
+        repo = SubmissionRepository(table=dynamodb_table)
+        job_id = uuid4()
+        sub = Submission(
+            job_id=job_id,
+            question_id=101,
+            question_name="Q1",
+            question_type="short_answer_question",
+            question_text="What is X?",
+            points_possible=10.0,
+            student_answer="My answer",
+            canvas_points=5.0,
+            correct_answers=["X"],
+            ai_grade=6.0,
+            ai_feedback="AI feedback",
+        )
+        repo.batch_create([sub])
+
+        repo.set_override(
+            job_id,
+            sub.submission_id,
+            grade=8.5,
+            feedback="Check citation 3",
+            overridden_by="instructor_123",
+        )
+        refetched = repo.get(job_id, sub.submission_id)
+        assert refetched.instructor_grade == 8.5
+        assert refetched.instructor_feedback == "Check citation 3"
+        assert refetched.overridden_by == "instructor_123"
+        assert refetched.effective_grade == 8.5
+        assert refetched.effective_feedback == "Check citation 3"

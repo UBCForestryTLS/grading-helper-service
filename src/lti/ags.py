@@ -188,7 +188,7 @@ def passback_quiz_grades_via_rest(
     # Group AI-graded submissions by student (one PUT call per student)
     by_student: dict[tuple, dict] = {}
     for sub in submissions:
-        if sub.ai_grade is None:
+        if sub.effective_grade is None:
             continue
         if sub.quiz_submission_id == 0:
             # Pre-migration row — skip, no quiz_submission_id available
@@ -197,8 +197,8 @@ def passback_quiz_grades_via_rest(
         if key not in by_student:
             by_student[key] = {}
         by_student[key][sub.question_id] = {
-            "score": sub.ai_grade,
-            "comment": sub.ai_feedback or "",
+            "score": sub.effective_grade,
+            "comment": sub.effective_feedback or "",
         }
 
     submitted = 0
@@ -296,16 +296,16 @@ def passback_job_grades(
     errors: list[str] = []
 
     for sub in submissions:
-        if sub.ai_grade is None:
+        if sub.effective_grade is None:
             continue
         try:
             submit_score(
                 lineitem_url=lineitem_url,
                 token=token,
                 user_id=sub.canvas_user_id or str(sub.submission_id),
-                score=sub.ai_grade,
+                score=sub.effective_grade,
                 max_score=sub.points_possible,
-                comment=sub.ai_feedback,
+                comment=sub.effective_feedback,
             )
             submitted += 1
         except Exception as e:

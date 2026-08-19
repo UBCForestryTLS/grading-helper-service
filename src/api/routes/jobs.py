@@ -3,10 +3,11 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 
 from src.auth.session import SessionUser, require_instructor
 from src.core.observability import logger, metrics, MetricUnit
+from src.core.validation import validate_grade
 from src.models.grading_job import GradingJob, GradingJobCreate, JobStatus
 from src.models.submission import Submission
 from src.repositories.grading_job import GradingJobRepository
@@ -163,3 +164,72 @@ def list_submissions(
 
     sub_repo = _get_sub_repo()
     return sub_repo.list_by_job(job_id)
+
+
+class SubmissionOverrideRequest(BaseModel):
+    grade: float | None = None
+    feedback: str | None = None
+    revert: bool = False
+
+
+@router.patch("/{job_id}/submissions/{submission_id}", response_model=Submission)
+def override_submission(
+    job_id: UUID,
+    submission_id: UUID,
+    body: SubmissionOverrideRequest,
+    session: SessionUser = Depends(require_instructor),
+) -> Submission:
+    """Set or clear an instructor override on a submission's grade/feedback."""
+    job_repo = _get_job_repo()
+    job = job_repo.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.course_id != session.course_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if job.status != JobStatus.COMPLETED:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job is {job.status}, must be COMPLETED to override a grade",
+        )
+
+    sub_repo = _get_sub_repo()
+    submission = sub_repo.get(job_id, submission_id)
+    if submission is None:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    if body.grade is None and body.feedback is None and not body.revert:
+        raise HTTPException(status_code=422, detail="Nothing to update.")
+
+    if body.revert and (body.grade is not None or body.feedback is not None):
+        raise HTTPException(
+            status_code=422,
+            detail="Cannot provide grade or feedback when reverting.",
+        )
+
+    if body.revert:
+        updated = sub_repo.clear_override(job_id, submission_id)
+        if updated is None:
+            raise HTTPException(status_code=404, detail="Submission not found")
+        return updated
+
+    if body.grade is not None:
+        error = validate_grade(body.grade, submission.points_possible)
+        if error:
+            raise HTTPException(status_code=422, detail=error)
+    if body.feedback is not None and not body.feedback.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Feedback cannot be empty.",
+        )
+    updated = sub_repo.set_override(
+        job_id,
+        submission_id,
+        body.grade,
+        body.feedback,
+        session.canvas_user_id,
+    )
+
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    return updated

@@ -462,3 +462,493 @@ class TestCancelJob:
         )
         assert response.status_code == 200
         assert response.json()["status"] == "CANCELLED"
+
+
+class TestSubmissionOverride:
+    def test_override_submission_updates_grade(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+
+        job_id = create.json()["job_id"]
+
+        GradingJobRepository(table=dynamodb_table).update_status(
+            UUID(job_id),
+            JobStatus.COMPLETED,
+        )
+
+        submission = client.get(
+            f"/jobs/{job_id}/submissions",
+            headers=auth,
+        ).json()[0]
+
+        submission_id = submission["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={
+                "grade": 5,
+                "feedback": "Great answer",
+            },
+            headers=auth,
+        )
+
+        assert response.status_code == 200
+
+        repo = SubmissionRepository(table=dynamodb_table)
+
+        updated = repo.get(
+            UUID(job_id),
+            UUID(submission_id),
+        )
+
+        assert updated.instructor_grade == 5
+        assert updated.instructor_feedback == "Great answer"
+
+    def test_override_submission_success(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+
+        job_id = create.json()["job_id"]
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        repo.update_status(UUID(job_id), JobStatus.COMPLETED)
+
+        subs = client.get(
+            f"/jobs/{job_id}/submissions",
+            headers=auth,
+        ).json()
+
+        submission_id = subs[0]["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={
+                "grade": 4,
+                "feedback": "Excellent work.",
+            },
+            headers=auth,
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+
+        assert data["instructor_grade"] == 4
+        assert data["instructor_feedback"] == "Excellent work."
+
+        assert data["effective_grade"] == 4
+        assert data["effective_feedback"] == "Excellent work."
+
+        assert data["overridden_by"] != ""
+        assert data["overridden_at"] is not None
+
+    def test_override_submission_out_of_range(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+
+        job_id = create.json()["job_id"]
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        repo.update_status(UUID(job_id), JobStatus.COMPLETED)
+
+        subs = client.get(
+            f"/jobs/{job_id}/submissions",
+            headers=auth,
+        ).json()
+
+        submission_id = subs[0]["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={"grade": 9999},
+            headers=auth,
+        )
+
+        assert response.status_code == 422
+
+    def test_override_submission_job_not_completed(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        instructor_launch,
+    ):
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+
+        job_id = create.json()["job_id"]
+
+        subs = client.get(
+            f"/jobs/{job_id}/submissions",
+            headers=auth,
+        ).json()
+
+        submission_id = subs[0]["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={"grade": 5},
+            headers=auth,
+        )
+
+        assert response.status_code == 409
+
+    def test_override_submission_wrong_course(
+        self,
+        client,
+        session_token,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.models.submission import Submission
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        job_repo = GradingJobRepository(table=dynamodb_table)
+
+        job = GradingJob(
+            course_id="OTHER",
+            quiz_id="Q50",
+            job_name="Other Job",
+            status=JobStatus.COMPLETED,
+        )
+        job_repo.create(job)
+
+        sub = Submission(
+            job_id=job.job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="Question",
+            points_possible=10,
+            student_answer="Answer",
+            canvas_points=0,
+            correct_answers=[],
+        )
+
+        SubmissionRepository(table=dynamodb_table).batch_create([sub])
+
+        response = client.patch(
+            f"/jobs/{job.job_id}/submissions/{sub.submission_id}",
+            json={"grade": 8},
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+
+        assert response.status_code == 403
+
+    def test_override_submission_revert(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create.json()["job_id"]
+        GradingJobRepository(table=dynamodb_table).update_status(
+            UUID(job_id), JobStatus.COMPLETED
+        )
+
+        subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
+        submission_id = subs[0]["submission_id"]
+
+        # First set an override
+        client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={"grade": 8, "feedback": "Good"},
+            headers=auth,
+        )
+
+        # Then revert it
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={"revert": True},
+            headers=auth,
+        )
+        assert response.status_code == 200
+
+        repo = SubmissionRepository(table=dynamodb_table)
+        updated = repo.get(UUID(job_id), UUID(submission_id))
+        assert updated.instructor_grade is None
+        assert updated.instructor_feedback is None
+        assert updated.overridden_by is None
+
+    def test_override_submission_nothing_to_update(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create.json()["job_id"]
+        GradingJobRepository(table=dynamodb_table).update_status(
+            UUID(job_id), JobStatus.COMPLETED
+        )
+
+        subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
+        submission_id = subs[0]["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={},
+            headers=auth,
+        )
+        assert response.status_code == 422
+
+    def test_override_submission_not_found(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID, uuid4
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create.json()["job_id"]
+        GradingJobRepository(table=dynamodb_table).update_status(
+            UUID(job_id), JobStatus.COMPLETED
+        )
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{uuid4()}",
+            json={"grade": 5},
+            headers=auth,
+        )
+        assert response.status_code == 404
+
+    def test_override_revert_with_grade_returns_422(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create.json()["job_id"]
+        GradingJobRepository(table=dynamodb_table).update_status(
+            UUID(job_id), JobStatus.COMPLETED
+        )
+        subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
+        submission_id = subs[0]["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={"grade": 1, "revert": True},
+            headers=auth,
+        )
+        assert response.status_code == 422
+
+    def test_override_negative_grade_returns_422(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create.json()["job_id"]
+        GradingJobRepository(table=dynamodb_table).update_status(
+            UUID(job_id), JobStatus.COMPLETED
+        )
+        subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
+        submission_id = subs[0]["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={"grade": -1},
+            headers=auth,
+        )
+        assert response.status_code == 422
+
+    def test_override_empty_feedback_returns_422(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from uuid import UUID
+        from src.models.grading_job import JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+        create = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create.json()["job_id"]
+        GradingJobRepository(table=dynamodb_table).update_status(
+            UUID(job_id), JobStatus.COMPLETED
+        )
+        subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
+        submission_id = subs[0]["submission_id"]
+
+        response = client.patch(
+            f"/jobs/{job_id}/submissions/{submission_id}",
+            json={"feedback": "   "},
+            headers=auth,
+        )
+        assert response.status_code == 422
