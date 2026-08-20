@@ -98,6 +98,13 @@ class GradingService:
     def _grade_submission(self, sub) -> None:
         prompt = self._build_prompt(sub)
         response = self._invoke_bedrock(prompt)
+        raw_text = response["content"][0]["text"]
+        logger.info(
+            "Bedrock response received",
+            job_id=str(sub.job_id),
+            submission_id=str(sub.submission_id),
+            raw_response=raw_text,
+        )
         grade, feedback = self._parse_response(response, sub.points_possible)
         now = datetime.now(timezone.utc)
         self.sub_repo.update_ai_grade(
