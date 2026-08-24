@@ -805,7 +805,7 @@ class TestPassbackQuizGradesViaRest:
         assert sent_questions[1]["score"] == 9.0  # instructor override, not 6.0
         assert (
             sent_questions[1]["comment"]
-            == "(This question's grade and feedback were modified by the instructor.)\n\nInstructor feedback"
+            == "(This question's grade and feedback were modified by the instructor. AI assistance may have been used to write the provided feedback.)\n\nInstructor feedback"
         )
 
     def test_passback_rest_falls_back_to_ai_grade_without_override(self, monkeypatch):
