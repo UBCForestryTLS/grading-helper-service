@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timezone
 from uuid import UUID
 from src.lti.key_manager import get_private_key
+from src.services.notices import generate_ai_notice
 
 import httpx
 import jwt
@@ -191,14 +192,24 @@ def passback_quiz_grades_via_rest(
         if sub.effective_grade is None:
             continue
         if sub.quiz_submission_id == 0:
-            # Pre-migration row — skip, no quiz_submission_id available
             continue
         key = (sub.canvas_user_id, sub.quiz_submission_id, sub.attempt)
         if key not in by_student:
             by_student[key] = {}
+
+        notice = generate_ai_notice(
+            ai_grade=sub.ai_grade,
+            ai_feedback=sub.ai_feedback,
+            instructor_grade=sub.instructor_grade,
+            instructor_feedback=sub.instructor_feedback,
+        )
+
+        feedback = sub.effective_feedback or ""
+        comment = f"{notice}\n\n{feedback}" if feedback else notice
+
         by_student[key][sub.question_id] = {
             "score": sub.effective_grade,
-            "comment": sub.effective_feedback or "",
+            "comment": comment or "",
         }
 
     submitted = 0
@@ -299,13 +310,23 @@ def passback_job_grades(
         if sub.effective_grade is None:
             continue
         try:
+            notice = generate_ai_notice(
+                ai_grade=sub.ai_grade,
+                ai_feedback=sub.ai_feedback,
+                instructor_grade=sub.instructor_grade,
+                instructor_feedback=sub.instructor_feedback,
+            )
+
+            feedback = sub.effective_feedback or ""
+            comment = f"{notice}\n\n{feedback}" if feedback else notice
+
             submit_score(
                 lineitem_url=lineitem_url,
                 token=token,
                 user_id=sub.canvas_user_id or str(sub.submission_id),
                 score=sub.effective_grade,
                 max_score=sub.points_possible,
-                comment=sub.effective_feedback,
+                comment=comment,
             )
             submitted += 1
         except Exception as e:

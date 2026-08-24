@@ -19,8 +19,8 @@ INSTRUCTOR_FEEDBACK_NOTICE = (
 
 def generate_ai_notice(
     ai_grade,
-    instructor_grade,
     ai_feedback,
+    instructor_grade,
     instructor_feedback,
 ) -> str:
     """Generate the appropriate AI assistance notice."""
