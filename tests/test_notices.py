@@ -60,3 +60,25 @@ def test_same_grade_value_still_counts_as_grade_override():
     )
 
     assert result == INSTRUCTOR_GRADE_NOTICE
+
+
+def test_empty_instructor_feedback_does_not_count_as_override():
+    result = generate_ai_notice(
+        ai_grade=80.0,
+        instructor_grade=None,
+        ai_feedback="Good work.",
+        instructor_feedback="",
+    )
+
+    assert result == AI_GRADE_AND_FEEDBACK_NOTICE
+
+
+def test_whitespace_instructor_feedback_does_not_count_as_override():
+    result = generate_ai_notice(
+        ai_grade=80.0,
+        instructor_grade=None,
+        ai_feedback="Good work.",
+        instructor_feedback="   ",
+    )
+
+    assert result == AI_GRADE_AND_FEEDBACK_NOTICE

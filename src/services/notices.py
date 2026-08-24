@@ -25,7 +25,9 @@ def generate_ai_notice(
 ) -> str:
     """Generate the appropriate AI assistance notice."""
     grade_overridden = instructor_grade is not None
-    feedback_overridden = instructor_feedback is not None
+    feedback_overridden = (
+        instructor_feedback is not None and instructor_feedback.strip()
+    )
 
     if grade_overridden and feedback_overridden:
         return INSTRUCTOR_GRADE_AND_FEEDBACK_NOTICE
