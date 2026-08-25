@@ -44,6 +44,8 @@ erDiagram
         string ai_graded_at
         string instructor_grade
         string instructor_feedback
+        string overridden_by
+        string overridden_at
     }
 
     LTIState {
