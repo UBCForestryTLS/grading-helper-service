@@ -205,7 +205,7 @@ def passback_quiz_grades_via_rest(
         )
 
         feedback = sub.effective_feedback or ""
-        comment = f"{notice}\n\n{feedback}" if feedback else notice
+        comment = f"*{notice}*\n\n{feedback}" if feedback else notice
 
         by_student[key][sub.question_id] = {
             "score": sub.effective_grade,
@@ -318,7 +318,7 @@ def passback_job_grades(
             )
 
             feedback = sub.effective_feedback or ""
-            comment = f"{notice}\n\n{feedback}" if feedback else notice
+            comment = f"*{notice}*\n\n{feedback}" if feedback else notice
 
             submit_score(
                 lineitem_url=lineitem_url,
