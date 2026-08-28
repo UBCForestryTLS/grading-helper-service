@@ -29,6 +29,8 @@ class GradingJob(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     error_message: str | None = None
+    custom_prompt: str | None = None
+    effective_prompt: str | None = None
 
 
 class GradingJobCreate(BaseModel):

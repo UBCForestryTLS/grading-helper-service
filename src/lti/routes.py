@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from src.auth.session import (
     SessionUser,
     create_session_token,
@@ -244,6 +244,7 @@ class LTIJobCreate(BaseModel):
     launch_id: str
     quiz_id: str
     quiz_title: str = ""
+    custom_prompt: str | None = Field(default=None, max_length=1000)
 
 
 class PassbackRequest(BaseModel):
@@ -423,6 +424,7 @@ def lti_create_job(
             quiz_submissions=quiz_submissions,
             answers_by_user=answers_by_user,
             assignment_id=str(assignment_id or ""),
+            custom_prompt=body.custom_prompt,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
