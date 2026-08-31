@@ -954,7 +954,7 @@ class TestSubmissionOverride:
             headers=auth,
         )
         assert response.status_code == 422
-           
+
 
 class TestRetryFailedJob:
     def test_retry_requires_completed_with_errors(
