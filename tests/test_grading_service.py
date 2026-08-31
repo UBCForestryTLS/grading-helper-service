@@ -266,7 +266,7 @@ class TestRetryFailed:
         subs = {s.submission_id: s for s in sub_repo.list_by_job(job.job_id)}
         assert subs[sub_graded.submission_id].ai_feedback == "Original grade"
         assert subs[sub_graded.submission_id].ai_grade == 5.0
-        
+
         assert subs[sub_failed.submission_id].ai_feedback == "Retried grade"
         assert subs[sub_failed.submission_id].ai_grade == 3.0
         assert subs[sub_failed.submission_id].grading_status == GradingStatus.GRADED
