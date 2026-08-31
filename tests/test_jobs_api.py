@@ -753,6 +753,11 @@ class TestSubmissionOverride:
             headers=auth,
         )
 
+        repo = SubmissionRepository(table=dynamodb_table)
+        stored = repo.get(UUID(job_id), UUID(submission_id))
+        assert stored.instructor_grade == 8
+        assert stored.instructor_feedback == "Good"
+
         # Then revert it
         response = client.patch(
             f"/jobs/{job_id}/submissions/{submission_id}",
@@ -761,7 +766,6 @@ class TestSubmissionOverride:
         )
         assert response.status_code == 200
 
-        repo = SubmissionRepository(table=dynamodb_table)
         updated = repo.get(UUID(job_id), UUID(submission_id))
         assert updated.instructor_grade is None
         assert updated.instructor_feedback is None
