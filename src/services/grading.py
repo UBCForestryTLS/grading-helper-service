@@ -104,7 +104,7 @@ class GradingService:
             )
             metrics.add_metric(name="GradingJobFailed", unit=MetricUnit.Count, value=1)
         else:
-            logger.info(
+            logger.warning(
                 "Grading completed with errors",
                 job_id=str(job_id),
                 success_count=success,
