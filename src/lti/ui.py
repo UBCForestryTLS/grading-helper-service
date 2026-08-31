@@ -868,8 +868,8 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             return;
         }}
 
-        if (grade !== null && (grade < 0 || grade > pointsPossible)) {{
-            msgEl.textContent = 'Grade must be between 0 and ' + pointsPossible + '.';
+        if (grade !== null && (isNaN(grade) || grade < 0 || grade > pointsPossible)) {{
+            msgEl.textContent = 'Grade must be a valid number between 0 and ' + pointsPossible + '.';
             msgEl.style.color = '#cc0000';
             return;
         }}
