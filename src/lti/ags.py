@@ -198,8 +198,6 @@ def passback_quiz_grades_via_rest(
             by_student[key] = {}
 
         notice = generate_ai_notice(
-            ai_grade=sub.ai_grade,
-            ai_feedback=sub.ai_feedback,
             instructor_grade=sub.instructor_grade,
             instructor_feedback=sub.instructor_feedback,
         )
@@ -311,8 +309,6 @@ def passback_job_grades(
             continue
         try:
             notice = generate_ai_notice(
-                ai_grade=sub.ai_grade,
-                ai_feedback=sub.ai_feedback,
                 instructor_grade=sub.instructor_grade,
                 instructor_feedback=sub.instructor_feedback,
             )
