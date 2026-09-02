@@ -48,6 +48,8 @@ erDiagram
         string instructor_feedback
         string grading_status
         string grading_error
+        string overridden_by
+        string overridden_at
     }
 
     LTIState {

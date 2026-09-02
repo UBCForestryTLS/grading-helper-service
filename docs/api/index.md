@@ -164,7 +164,9 @@ List all submissions for a grading job, including AI grades and feedback if grad
     "instructor_grade": 5.0,
     "instructor_feedback": "Excellent explanation.",
     "effective_grade": 5.0,
-    "effective_feedback": "Excellent explanation."
+    "effective_feedback": "Excellent explanation.",
+    "overridden_by": "42",
+    "overridden_at": "2026-03-10T16:00:00+00:00"
   }
 ]
 ```
@@ -259,6 +261,7 @@ Push AI grades for a completed job back to Canvas.
 - **Auth:** Required (session token)
 - **Quiz jobs** — uses Canvas REST API (`PUT /quizzes/:id/submissions/:id`) to update per-question scores on the existing quiz submission. This preserves MC/true-false grades and avoids creating a new gradebook column. Requires a valid Canvas OAuth token.
 - **Non-quiz jobs** — falls back to AGS grade passback.
+- **Comment field** — the `comment` sent to Canvas (per-question `comment`) includes a transparency notice ahead of the feedback text, describing whether the grade and feedback came from AI, an instructor, or both.
 - **Request body:**
 ```json
 {
