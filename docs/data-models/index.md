@@ -200,15 +200,15 @@ One student answer to one question. Defined in `src/models/submission.py`.
 | `canvas_user_id` | `str` | Canvas user ID (for grade passback) |
 | `quiz_submission_id` | `int` | Canvas quiz submission ID (used for REST-based grade passback; 0 if not set) |
 | `attempt` | `int` | Quiz submission attempt number (default 1) |
-| `ai_grade` | `float \| None` | AI-assigned grade (clamped to 0..points_possible) |
-| `ai_feedback` | `str \| None` | AI-generated feedback text |
-| `ai_graded_at` | `datetime \| None` | When the AI grading was performed |
-| `instructor_grade` | `float \| None` | Grade set by instructor override, replaces AI grade when present |
-| `instructor_feedback` | `str \| None` | feedback set by instructor override. replaces AI feedback when present |
-| `effective_grade` | `float \| None` | Returns instructor grade if set, otherwise AI grade|
-| `effective_feedback` | `str \| None` | Returns instructor feedback if set, otherwise AI feedback |
-| `overridden_by` | `str \| None` | Canvas user ID of the instructor/TA who performed the override |
-| `overridden_at` | `datetime \| None` | When the Instructor override was done |
+| `ai_grade` | `float | None` | AI-assigned grade (clamped to 0..points_possible) |
+| `ai_feedback` | `str | None` | AI-generated feedback text |
+| `ai_graded_at` | `datetime | None` | When the AI grading was performed |
+| `instructor_grade` | `float | None` | Grade set by instructor override, replaces AI grade when present |
+| `instructor_feedback` | `str | None` | feedback set by instructor override. replaces AI feedback when present |
+| `effective_grade` | `float | None` | Returns instructor grade if set, otherwise AI grade|
+| `effective_feedback` | `str | None` | Returns instructor feedback if set, otherwise AI feedback |
+| `overridden_by` | `str | None` | Canvas user ID of the instructor/TA who performed the override |
+| `overridden_at` | `datetime | None` | When the Instructor override was done |
 | `grading_status` | `GradingStatus` | Current grading state: `PENDING`, `GRADED`, or `FAILED` |
 | `grading_error` | `str \| None` | Error message when submission grading fails |
 
