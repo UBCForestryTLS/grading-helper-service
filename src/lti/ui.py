@@ -592,9 +592,12 @@ def render_instructor_ui(
 
           const tdG = document.createElement('td');
           tdG.id = 'grade-cell-' + sub.submission_id;
-          const isOverridden = sub.instructor_grade != null;
-          if (sub.effective_grade != null) {{
-              tdG.textContent = sub.effective_grade;
+          
+          const hasGradeOverride = sub.instructor_grade != null;
+          const has FeedbackOverride = sub.instructor_feedback != null && sub.instructor_feedback !== '';
+          const isOverridden = hasGradeOverride || hasFeedbackOverride;
+          if (sub.instructor_grade != null) {{
+              tdG.textContent = sub.instructor_grade;
               if (isOverridden) {{
               const badge = document.createElement('span');
               badge.className = 'badge-override';
@@ -606,7 +609,7 @@ def render_instructor_ui(
           }}
           tr.appendChild(tdG);
 
-          if (sub.grading_status === 'FAILED') {{
+          if (sub.grading_status === 'FAILED' && !HasGradeOverride) {{
               const errBadge = document.createElement('span');
               errBadge.className = 'badge-override';
               errBadge.style.background = '#f8d7da';
@@ -623,7 +626,7 @@ def render_instructor_ui(
           const tdF = document.createElement('td');
           tdF.id = 'feedback-cell-' + sub.submission_id;
           tdF.textContent = stripHtml(sub.effective_feedback) || '\u2014';
-          if (sub.instructor_feedback) {{
+          if (hasFeedbackOverride) {{
               const feedbackBadge = document.createElement('span');
               feedbackBadge.className = 'badge-override';
               feedbackBadge.textContent = 'edited';

@@ -537,6 +537,7 @@ class TestPassbackJobGrades:
 
             stored = sub_repo.get(job_id, sub.submission_id)
             assert stored.grading_status == GradingStatus.FAILED
+
     def test_passback_ags_includes_ai_notice_without_override(
         self, dynamodb_table, lti_env_vars
     ):

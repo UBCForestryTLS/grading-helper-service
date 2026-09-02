@@ -148,6 +148,14 @@ class TestGradeJob:
         assert updated_job.fail_count == 1
         assert "Bedrock error" in updated_job.error_message
 
+        subs = {s.submission_id: s for s in sub_repo.list_by_job(job.job_id)}
+        graded = [s for s in subs.values() if s.grading_status == GradingStatus.GRADED]
+        failed = [s for s in subs.values() if s.grading_status == GradingStatus.FAILED]
+        assert len(graded) == 1
+        assert len(failed) == 1
+        assert graded[0].ai_grade == 5.0
+        assert "Bedrock error" in failed[0].grading_error
+
     def test_cancel_pending_job(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
 
