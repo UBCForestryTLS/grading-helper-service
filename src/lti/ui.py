@@ -103,9 +103,9 @@ def render_instructor_ui(
     .badge-override {{ background: #e8f0fe; color: #1a56db; font-size: 0.75em; 
                     padding: 1px 6px; border-radius: 10px; margin-left: 4px; }}
     .override-form {{ display: flex; flex-direction: column; gap: 4px; min-width: 160px; }}
-    .override-form input {{ padding: 4px 6px; font-size: 0.85rem; border: 1px solid #ccc;
+    .override-form input {{ padding: 4px 6px; font-size: 0.85em; border: 1px solid #ccc;
                             border-radius: 4px; width: 70px; }}
-    .override-form textarea {{ padding: 4px 6px; font-size: 0.85rem; border: 1px solid #ccc;
+    .override-form textarea {{ padding: 4px 6px; font-size: 0.85em; border: 1px solid #ccc;
                             border-radius: 4px; resize: vertical; width: 100%; }}
     .override-form .btn-row {{ display: flex; gap: 4px; }}
     .btn-save {{ background: #006600; padding: 3px 10px; font-size: 0.82em; }}
@@ -592,16 +592,10 @@ def render_instructor_ui(
 
           const tdG = document.createElement('td');
           tdG.id = 'grade-cell-' + sub.submission_id;
-
-          const isOverridden = sub.instructor_grade != null 
-            || (
-                typeof sub.instructor_feedback == "string" 
-                && sub.instructor_feedback.trim().length > 0
-            );
-
+          const isOverridden = sub.instructor_grade != null;
           if (sub.effective_grade != null) {{
               tdG.textContent = sub.effective_grade;
-              if (sub.instructor_grade != null) {{
+              if (isOverridden) {{
               const badge = document.createElement('span');
               badge.className = 'badge-override';
               badge.textContent = 'edited';
@@ -935,6 +929,9 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
                 overrideForm.appendChild(overrideInfo);
             }}
             overrideInfo.textContent = 'Last override by user ' + (updated.overridden_by || 'unknown');
+
+            document.getElementById('feedback-cell-' + submissionId).textContent =
+            stripHtml(updated.effective_feedback) || '\u2014';
 
         }} catch (e) {{
             msgEl.textContent = 'Could not connect. Please try again.';
