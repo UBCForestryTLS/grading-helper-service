@@ -9,7 +9,7 @@ from src.auth.session import SessionUser, require_instructor
 from src.core.observability import logger, metrics, MetricUnit
 from src.core.validation import validate_grade
 from src.models.grading_job import GradingJob, GradingJobCreate, JobStatus
-from src.models.submission import Submission
+from src.models.submission import Submission, GradingStatus
 from src.repositories.grading_job import GradingJobRepository
 from src.repositories.submission import SubmissionRepository
 from src.services.grading import GradingService
@@ -234,6 +234,10 @@ def override_submission(
         )
 
     if body.revert:
+        if submission.grading_status == GradingStatus.FAILED:
+            raise HTTPException(
+                status_code=422, detail="Cannot revert override on a failed submission."
+            )
         updated = sub_repo.clear_override(job_id, submission_id)
         if updated is None:
             raise HTTPException(status_code=404, detail="Submission not found")

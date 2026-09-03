@@ -743,17 +743,25 @@ class TestSubmissionOverride:
             UUID(job_id), JobStatus.COMPLETED
         )
 
+        resp = client.get(f"/jobs/{job_id}/submissions", headers=auth)
+        print("STATUS:", resp.status_code, "BODY:", resp.json())
+        subs = resp.json()
+        submission_id = subs[0]["submission_id"]
+
         subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
         submission_id = subs[0]["submission_id"]
 
         # First set an override
         client.patch(
             f"/jobs/{job_id}/submissions/{submission_id}",
-            json={"grade": 8, "feedback": "Good"},
+            json={"grade": 4.5, "feedback": "Good"},
             headers=auth,
         )
 
         repo = SubmissionRepository(table=dynamodb_table)
+        stored = repo.get(UUID(job_id), UUID(submission_id))
+        assert stored.instructor_grade == 4.5
+        assert stored.instructor_feedback == "Good"
 
         # Then revert it
         response = client.patch(

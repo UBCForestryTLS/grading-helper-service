@@ -594,22 +594,23 @@ def render_instructor_ui(
           tdG.id = 'grade-cell-' + sub.submission_id;
           
           const hasGradeOverride = sub.instructor_grade != null;
-          const has FeedbackOverride = sub.instructor_feedback != null && sub.instructor_feedback !== '';
+          const hasFeedbackOverride = sub.instructor_feedback != null && sub.instructor_feedback !== '';
           const isOverridden = hasGradeOverride || hasFeedbackOverride;
-          if (sub.instructor_grade != null) {{
-              tdG.textContent = sub.instructor_grade;
-              if (isOverridden) {{
-              const badge = document.createElement('span');
-              badge.className = 'badge-override';
-              badge.textContent = 'edited';
-              tdG.appendChild(badge);
-              }}
+          if (sub.effective_grade != null) {{
+              tdG.textContent = sub.effective_grade;
           }} else {{
               tdG.textContent = '\u2014';
           }}
+          
+          if (hasGradeOverride) {{
+            const badge = document.createElement('span');
+            badge.className = 'badge-override';
+            badge.textContent = 'edited';
+            tdG.appendChild(badge);
+            }}
           tr.appendChild(tdG);
 
-          if (sub.grading_status === 'FAILED' && !HasGradeOverride) {{
+          if (sub.grading_status === 'FAILED' && !isOverridden) {{
               const errBadge = document.createElement('span');
               errBadge.className = 'badge-override';
               errBadge.style.background = '#f8d7da';
@@ -644,7 +645,7 @@ def render_instructor_ui(
                     placeholder="Feedback" rows="2">${{sub.instructor_feedback != null ? sub.instructor_feedback : ''}}</textarea>
           <div class="btn-row">
           <button class="btn-save" onclick="saveOverride('${{currentJobId}}', '${{sub.submission_id}}', ${{sub.points_possible}})">Save</button>
-          ${{isOverridden ? `<button class="btn-revert" onclick="revertOverride('${{currentJobId}}', '${{sub.submission_id}}')">Revert</button>` : ''}}
+          ${{isOverridden && sub.grading_status !== 'FAILED' ? `<button class="btn-revert" onclick="revertOverride('${{currentJobId}}', '${{sub.submission_id}}')">Revert</button>` : ''}}
         </div>
         <div id="override-msg-${{sub.submission_id}}" class="status"></div>
         ${{isOverridden ? `<div class="override-info" style="font-size:0.8rem; color:#666; margin-top:4px;">Last override by user ${{sub.overridden_by || 'unknown'}}</div>` : ''}}
@@ -915,7 +916,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
 
             const overrideForm = gradeInput.closest('.override-form');
             const btnRow = overrideForm.querySelector('.btn-row');
-            if (!btnRow.querySelector('.btn-revert')) {{
+            if (updated.grading_status !== 'FAILED' && !btnRow.querySelector('.btn-revert')) {{
                 const revertBtn = document.createElement('button');
                 revertBtn.className = 'btn-revert';
                 revertBtn.textContent = 'Revert';

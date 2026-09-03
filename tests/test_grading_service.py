@@ -109,6 +109,12 @@ class TestGradeJob:
         )
         service.grade_job(job.job_id)
 
+        subs = sub_repo.list_by_job(job.job_id)
+
+        for s in subs:
+            assert s.grading_status == GradingStatus.FAILED
+            assert "Bedrock down" in s.grading_error
+
         updated_job = job_repo.get(job.job_id)
         assert updated_job.status == JobStatus.FAILED
         assert updated_job.success_count == 0
@@ -339,6 +345,14 @@ class TestRetryFailed:
             job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
         )
         service.retry_failed(job.job_id)
+
+        subs = sub_repo.list_by_job(job.job_id)
+        failed = [s for s in subs if s.grading_status == GradingStatus.FAILED]
+        graded = [s for s in subs if s.grading_status == GradingStatus.GRADED]
+
+        assert len(graded) == 1
+        assert len(failed) == 1
+        assert "Still broken" in failed[0].grading_error
 
         updated_job = job_repo.get(job.job_id)
         assert updated_job.status == JobStatus.COMPLETED_WITH_ERRORS
