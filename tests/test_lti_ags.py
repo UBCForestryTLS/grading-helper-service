@@ -472,6 +472,70 @@ class TestPassbackJobGrades:
         assert result["submitted"] == 1
         assert result["errors"] == []
 
+    def test_passback_skips_failed_submission_without_override(
+        self, dynamodb_table, lti_env_vars
+    ):
+        from uuid import uuid4
+        from src.lti.ags import passback_job_grades
+        from src.lti.launch_store import LaunchStore
+        from src.models.grading_job import GradingJob
+        from src.models.submission import Submission, GradingStatus
+        from src.repositories.grading_job import GradingJobRepository
+        from src.repositories.submission import SubmissionRepository
+
+        store = LaunchStore(table=dynamodb_table)
+        launch_id = store.create(
+            {
+                "sub": "user-1",
+                "iss": "https://canvas.test.instructure.com",
+                "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": {
+                    "lineitem": "https://canvas.test.instructure.com/lineitem/1",
+                    "scope": [],
+                },
+            }
+        )
+
+        job_id = uuid4()
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        job_repo.create(
+            GradingJob(job_id=job_id, course_id="C1", quiz_id="Q1", job_name="Test")
+        )
+
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+        sub_repo.batch_create(
+            [
+                Submission(
+                    job_id=job_id,
+                    question_id=1,
+                    question_name="Q1",
+                    question_type="short_answer_question",
+                    question_text="?",
+                    points_possible=5.0,
+                    student_answer="Answer",
+                    canvas_points=0.0,
+                    correct_answers=[],
+                )
+            ]
+        )
+        sub = sub_repo.list_by_job(job_id)[0]
+        sub_repo.mark_failed(job_id, sub.submission_id, "Bedrock error")
+
+        mock_token_resp = MagicMock()
+        mock_token_resp.json.return_value = {"access_token": "tok"}
+        mock_token_resp.raise_for_status = MagicMock()
+
+        with patch("src.lti.ags.httpx.post", return_value=mock_token_resp) as mock_post:
+            result = passback_job_grades(
+                job_id=str(job_id), launch_id=launch_id, table=dynamodb_table
+            )
+
+        assert result["submitted"] == 0
+        assert result["errors"] == []
+        assert mock_post.call_count == 1  # only the token exchange, no score POST
+
+        stored = sub_repo.get(job_id, sub.submission_id)
+        assert stored.grading_status == GradingStatus.FAILED
+
     def test_passback_ags_includes_ai_notice_without_override(
         self, dynamodb_table, lti_env_vars
     ):

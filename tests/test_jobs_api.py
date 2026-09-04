@@ -743,15 +743,25 @@ class TestSubmissionOverride:
             UUID(job_id), JobStatus.COMPLETED
         )
 
+        resp = client.get(f"/jobs/{job_id}/submissions", headers=auth)
+        print("STATUS:", resp.status_code, "BODY:", resp.json())
+        subs = resp.json()
+        submission_id = subs[0]["submission_id"]
+
         subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
         submission_id = subs[0]["submission_id"]
 
         # First set an override
         client.patch(
             f"/jobs/{job_id}/submissions/{submission_id}",
-            json={"grade": 8, "feedback": "Good"},
+            json={"grade": 4.5, "feedback": "Good"},
             headers=auth,
         )
+
+        repo = SubmissionRepository(table=dynamodb_table)
+        stored = repo.get(UUID(job_id), UUID(submission_id))
+        assert stored.instructor_grade == 4.5
+        assert stored.instructor_feedback == "Good"
 
         # Then revert it
         response = client.patch(
@@ -761,7 +771,6 @@ class TestSubmissionOverride:
         )
         assert response.status_code == 200
 
-        repo = SubmissionRepository(table=dynamodb_table)
         updated = repo.get(UUID(job_id), UUID(submission_id))
         assert updated.instructor_grade is None
         assert updated.instructor_feedback is None
@@ -842,7 +851,7 @@ class TestSubmissionOverride:
         )
         assert response.status_code == 404
 
-    def test_override_revert_with_grade_returns_422(
+    def test_override_submission_allowed_on_completed_with_errors(
         self,
         client,
         session_token,
@@ -866,9 +875,11 @@ class TestSubmissionOverride:
             headers=auth,
         )
         job_id = create.json()["job_id"]
+
         GradingJobRepository(table=dynamodb_table).update_status(
-            UUID(job_id), JobStatus.COMPLETED
+            UUID(job_id), JobStatus.COMPLETED_WITH_ERRORS, success_count=1, fail_count=1
         )
+
         subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
         submission_id = subs[0]["submission_id"]
 
@@ -952,3 +963,75 @@ class TestSubmissionOverride:
             headers=auth,
         )
         assert response.status_code == 422
+
+
+class TestRetryFailedJob:
+    def test_retry_requires_completed_with_errors(
+        self, client, session_token, instructor_launch, dynamodb_table
+    ):
+        from src.models.grading_job import GradingJob
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Pending Job")
+        repo.create(job)
+
+        response = client.post(
+            f"/jobs/{job.job_id}/retry-failed",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 409
+
+    def test_retry_not_found(self, client, session_token, instructor_launch):
+        response = client.post(
+            "/jobs/12345678-1234-5678-1234-567812345678/retry-failed",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 404
+
+    def test_retry_wrong_course_returns_403(
+        self, client, session_token, dynamodb_table, instructor_launch
+    ):
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(
+            course_id="OTHER",
+            quiz_id="Q50",
+            job_name="Other Job",
+            status=JobStatus.COMPLETED_WITH_ERRORS,
+        )
+        repo.create(job)
+
+        response = client.post(
+            f"/jobs/{job.job_id}/retry-failed",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
+        assert response.status_code == 403
+
+    def test_retry_calls_service(
+        self, client, session_token, dynamodb_table, instructor_launch
+    ):
+        from src.models.grading_job import GradingJob, JobStatus
+        from src.repositories.grading_job import GradingJobRepository
+
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(
+            course_id="C100",
+            quiz_id="Q50",
+            job_name="Partial Job",
+            status=JobStatus.COMPLETED_WITH_ERRORS,
+        )
+        repo.create(job)
+
+        with patch("src.api.routes.jobs._get_grading_service") as mock_get_service:
+            mock_service = mock_get_service.return_value
+            mock_service.retry_failed.return_value = None
+            response = client.post(
+                f"/jobs/{job.job_id}/retry-failed",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+
+        assert response.status_code == 200
+        mock_service.retry_failed.assert_called_once()

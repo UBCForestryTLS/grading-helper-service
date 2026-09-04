@@ -92,7 +92,7 @@ Create a new grading job from Canvas quiz export data.
 List all grading jobs for the session's course. Optionally filter by status.
 
 - **Auth:** Required
-- **Query params:** `?status=PENDING` (optional, one of `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`)
+- **Query params:** `?status=PENDING` (optional, one of `PENDING`, `PROCESSING`, `COMPLETED`, `COMPLETED_WITH_ERRORS`, `FAILED`,`CANCELLED`)
 
 **Response:** Array of `GradingJob` objects
 
@@ -111,7 +111,7 @@ Start AI grading for all submissions in a job. Uses Bedrock Claude Haiku 4.5 wit
 
 - **Auth:** Required
 - **Errors:** 404 if job not found, 403 if wrong course, 409 if job is not in `PENDING` status
-- The job status transitions: `PENDING` -> `PROCESSING` -> `COMPLETED` (or `FAILED`)
+- The job status transitions: `PENDING` -> `PROCESSING` -> `COMPLETED` ,`COMPLETED_WITH_ERRORS` or `FAILED`
 
 **Response:** Updated `GradingJob` object
 
@@ -124,6 +124,16 @@ Cancel a job with status `PENDING` or `PROCESSING`
 - The job status transitions: `PENDING` → `CANCELLED` or `PROCESSING` → `CANCELLED`
 
 **Response:** Updated `GradingJob` object with `"status": "CANCELLED"`
+
+### `POST /jobs/{job_id}/retry-failed`
+
+Re-grade only the submissions currently marked `FAILED` on a job — does not re-run submissions that already succeeded.
+
+- **Auth:** Required
+- **Errors:** 404 if job not found, 403 if wrong course, 409 if job status is not `COMPLETED_WITH_ERRORS`
+- Transitions to `COMPLETED` if all retried submissions now succeed, or stays `COMPLETED_WITH_ERRORS` if some still fail
+
+**Response:** Updated `GradingJob` object
 
 ### `GET /jobs/{job_id}/submissions`
 
@@ -168,7 +178,9 @@ Lets instructor set or clear a grade/feedback override on a single submission.
 - **Auth:** Required
 - **Errors:** 404 if job or submission not found, 403 if wrong course, 422 if grade is out of range
 
+**Response:** Updated `Submission` object
 **Request body example:**
+
 ```json
 {
   "grade": 8.5,
@@ -177,8 +189,13 @@ Lets instructor set or clear a grade/feedback override on a single submission.
 }
 ```
 
-**Response:** Updated `Submission` object
-
+```json
+{
+  "grade": 8.5,
+  "feedback": "Good explanation. Added points for the correct example.",
+  "revert": false
+}
+```
 ---
 
 ## LTI Endpoints

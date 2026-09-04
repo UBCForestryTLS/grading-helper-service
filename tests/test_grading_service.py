@@ -4,9 +4,10 @@ import json
 from io import BytesIO
 from unittest.mock import MagicMock
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from src.models.grading_job import GradingJob, JobStatus
-from src.models.submission import Submission
+from src.models.submission import Submission, GradingStatus
 from src.repositories.grading_job import GradingJobRepository
 from src.repositories.submission import SubmissionRepository
 from src.services.grading import GradingService
@@ -70,6 +71,7 @@ class TestGradeJob:
         assert subs[0].ai_grade == 4.0
         assert subs[0].ai_feedback == "Good answer"
         assert subs[0].ai_graded_at is not None
+        assert subs[0].grading_status == GradingStatus.GRADED
 
     def test_grade_job_empty_submissions(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
@@ -87,6 +89,36 @@ class TestGradeJob:
         updated_job = job_repo.get(job.job_id)
         assert updated_job.status == JobStatus.COMPLETED
         mock_bedrock.invoke_model.assert_not_called()
+
+    def test_grade_job_all_fail(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="All Fail")
+        job_repo.create(job)
+
+        sub1 = _make_submission(job_id=job.job_id)
+        sub2 = _make_submission(job_id=job.job_id)
+        sub_repo.batch_create([sub1, sub2])
+
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.side_effect = RuntimeError("Bedrock down")
+
+        service = GradingService(
+            job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
+        )
+        service.grade_job(job.job_id)
+
+        subs = sub_repo.list_by_job(job.job_id)
+
+        for s in subs:
+            assert s.grading_status == GradingStatus.FAILED
+            assert "Bedrock down" in s.grading_error
+
+        updated_job = job_repo.get(job.job_id)
+        assert updated_job.status == JobStatus.FAILED
+        assert updated_job.success_count == 0
+        assert updated_job.fail_count == 2
 
     def test_grade_job_partial_failure(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
@@ -117,8 +149,18 @@ class TestGradeJob:
         service.grade_job(job.job_id)
 
         updated_job = job_repo.get(job.job_id)
-        assert updated_job.status == JobStatus.FAILED
-        assert "Failed to grade submission" in updated_job.error_message
+        assert updated_job.status == JobStatus.COMPLETED_WITH_ERRORS
+        assert updated_job.success_count == 1
+        assert updated_job.fail_count == 1
+        assert "Bedrock error" in updated_job.error_message
+
+        subs = {s.submission_id: s for s in sub_repo.list_by_job(job.job_id)}
+        graded = [s for s in subs.values() if s.grading_status == GradingStatus.GRADED]
+        failed = [s for s in subs.values() if s.grading_status == GradingStatus.FAILED]
+        assert len(graded) == 1
+        assert len(failed) == 1
+        assert graded[0].ai_grade == 5.0
+        assert "Bedrock error" in failed[0].grading_error
 
     def test_cancel_pending_job(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
@@ -197,6 +239,154 @@ class TestGradeJob:
 
         updated_job = job_repo.get(job.job_id)
         assert updated_job.status == JobStatus.CANCELLED
+
+
+class TestRetryFailed:
+    def test_retry_only_touches_failed_submissions(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Partial")
+        job_repo.create(job)
+
+        sub_graded = _make_submission(job_id=job.job_id, student_answer="Good")
+        sub_failed = _make_submission(job_id=job.job_id, student_answer="Bad")
+        sub_repo.batch_create([sub_graded, sub_failed])
+
+        # Simulate: sub_graded already succeeded, sub_failed is marked FAILED
+        sub_repo.update_ai_grade(
+            job_id=job.job_id,
+            submission_id=sub_graded.submission_id,
+            ai_grade=5.0,
+            ai_feedback="Original grade",
+            ai_graded_at=datetime.now(timezone.utc),
+        )
+        sub_repo.mark_failed(job.job_id, sub_failed.submission_id, "Bedrock error")
+        job_repo.update_status(
+            job.job_id, JobStatus.COMPLETED_WITH_ERRORS, success_count=1, fail_count=1
+        )
+
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.return_value = _bedrock_response(3.0, "Retried grade")
+
+        service = GradingService(
+            job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
+        )
+        service.retry_failed(job.job_id)
+
+        # Only one Bedrock call — the previously-graded submission was never re-touched
+        assert mock_bedrock.invoke_model.call_count == 1
+
+        subs = {s.submission_id: s for s in sub_repo.list_by_job(job.job_id)}
+        assert subs[sub_graded.submission_id].ai_feedback == "Original grade"
+        assert subs[sub_graded.submission_id].ai_grade == 5.0
+
+        assert subs[sub_failed.submission_id].ai_feedback == "Retried grade"
+        assert subs[sub_failed.submission_id].ai_grade == 3.0
+        assert subs[sub_failed.submission_id].grading_status == GradingStatus.GRADED
+
+    def test_retry_full_recovery_sets_completed(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Partial")
+        job_repo.create(job)
+
+        sub = _make_submission(job_id=job.job_id)
+        sub_repo.batch_create([sub])
+        sub_repo.mark_failed(job.job_id, sub.submission_id, "Bedrock error")
+        job_repo.update_status(
+            job.job_id, JobStatus.COMPLETED_WITH_ERRORS, success_count=0, fail_count=1
+        )
+
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.return_value = _bedrock_response(4.0, "Now graded")
+
+        service = GradingService(
+            job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
+        )
+        service.retry_failed(job.job_id)
+
+        updated_job = job_repo.get(job.job_id)
+        assert updated_job.status == JobStatus.COMPLETED
+        assert updated_job.success_count == 1
+        assert updated_job.fail_count == 0
+        assert updated_job.error_message == ""
+
+    def test_retry_still_partial_stays_completed_with_errors(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Partial")
+        job_repo.create(job)
+
+        sub1 = _make_submission(job_id=job.job_id)
+        sub2 = _make_submission(job_id=job.job_id)
+        sub3 = _make_submission(job_id=job.job_id)
+        sub_repo.batch_create([sub1, sub2, sub3])
+
+        sub_repo.update_ai_grade(
+            job_id=job.job_id,
+            submission_id=sub1.submission_id,
+            ai_grade=4.0,
+            ai_feedback="Good Answer",
+            ai_graded_at=datetime.now(timezone.utc),
+        )
+        sub_repo.mark_failed(job.job_id, sub2.submission_id, "Bedrock error")
+        sub_repo.mark_failed(job.job_id, sub3.submission_id, "Bedrock error")
+
+        job_repo.update_status(
+            job.job_id, JobStatus.COMPLETED_WITH_ERRORS, success_count=1, fail_count=2
+        )
+
+        call_count = 0
+
+        def side_effect(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return _bedrock_response(4.0, "Fixed")
+            raise RuntimeError("Still broken")
+
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.side_effect = side_effect
+
+        service = GradingService(
+            job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
+        )
+        service.retry_failed(job.job_id)
+
+        subs = sub_repo.list_by_job(job.job_id)
+        failed = [s for s in subs if s.grading_status == GradingStatus.FAILED]
+        graded = [s for s in subs if s.grading_status == GradingStatus.GRADED]
+
+        assert len(graded) == 2
+        assert len(failed) == 1
+        assert "Still broken" in failed[0].grading_error
+
+        updated_job = job_repo.get(job.job_id)
+        assert updated_job.status == JobStatus.COMPLETED_WITH_ERRORS
+        assert updated_job.success_count == 2
+        assert updated_job.fail_count == 1
+        assert "Still broken" in updated_job.error_message
+
+    def test_retry_no_failed_submissions_is_noop(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Already Fine")
+        job_repo.create(job)
+        job_repo.update_status(job.job_id, JobStatus.COMPLETED)
+
+        mock_bedrock = MagicMock()
+        service = GradingService(
+            job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
+        )
+        service.retry_failed(job.job_id)
+
+        mock_bedrock.invoke_model.assert_not_called()
+        updated_job = job_repo.get(job.job_id)
+        assert updated_job.status == JobStatus.COMPLETED
 
 
 class TestBuildPrompt:

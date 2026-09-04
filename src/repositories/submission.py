@@ -6,7 +6,7 @@ from uuid import UUID
 from boto3.dynamodb.conditions import Key
 
 from src.core.aws import get_dynamodb_table
-from src.models.submission import Submission
+from src.models.submission import GradingStatus, Submission
 
 
 class SubmissionRepository:
@@ -38,6 +38,7 @@ class SubmissionRepository:
             "canvas_user_id": sub.canvas_user_id,
             "quiz_submission_id": sub.quiz_submission_id,
             "attempt": sub.attempt,
+            "grading_status": str(sub.grading_status),
         }
         if sub.ai_grade is not None:
             item["ai_grade"] = str(sub.ai_grade)
@@ -54,6 +55,9 @@ class SubmissionRepository:
             item["overridden_by"] = sub.overridden_by
         if sub.overridden_at is not None:
             item["overridden_at"] = sub.overridden_at.isoformat()
+
+        if sub.grading_error is not None:
+            item["grading_error"] = sub.grading_error
         return item
 
     def _from_item(self, item: dict) -> Submission:
@@ -88,6 +92,8 @@ class SubmissionRepository:
                 if item.get("overridden_at")
                 else None
             ),
+            grading_status=GradingStatus(item.get("grading_status", "PENDING")),
+            grading_error=item.get("grading_error"),
         )
 
     def batch_create(self, submissions: list[Submission]) -> None:
@@ -122,9 +128,10 @@ class SubmissionRepository:
     ) -> None:
         self.table.update_item(
             Key={"pk": f"JOB#{job_id}", "sk": f"SUB#{submission_id}"},
-            UpdateExpression="SET ai_grade = :grade, ai_feedback = :feedback, ai_graded_at = :graded_at",
+            UpdateExpression="SET ai_grade = :grade, ai_feedback = :feedback, ai_graded_at = :graded_at, grading_status = :status",
             ExpressionAttributeValues={
                 ":grade": str(ai_grade),
+                ":status": str(GradingStatus.GRADED),
                 ":feedback": ai_feedback,
                 ":graded_at": ai_graded_at.isoformat(),
             },
@@ -162,3 +169,17 @@ class SubmissionRepository:
             UpdateExpression="REMOVE instructor_grade, instructor_feedback, overridden_by, overridden_at",
         )
         return self.get(job_id, submission_id)
+
+    def mark_failed(self, job_id: UUID, submission_id: UUID, error: str) -> None:
+        self.table.update_item(
+            Key={"pk": f"JOB#{job_id}", "sk": f"SUB#{submission_id}"},
+            UpdateExpression="SET grading_status = :status, grading_error = :error",
+            ExpressionAttributeValues={
+                ":status": str(GradingStatus.FAILED),
+                ":error": error,
+            },
+        )
+
+    def list_failed_by_job(self, job_id: UUID) -> list[Submission]:
+        subs = self.list_by_job(job_id)
+        return [s for s in subs if s.grading_status == GradingStatus.FAILED]
