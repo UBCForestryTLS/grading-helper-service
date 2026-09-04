@@ -322,11 +322,21 @@ class TestRetryFailed:
 
         sub1 = _make_submission(job_id=job.job_id)
         sub2 = _make_submission(job_id=job.job_id)
-        sub_repo.batch_create([sub1, sub2])
-        sub_repo.mark_failed(job.job_id, sub1.submission_id, "Bedrock error")
+        sub3 = _make_submission(job_id=job.job_id)
+        sub_repo.batch_create([sub1, sub2, sub3])
+
+        sub_repo.update_ai_grade(
+            job_id=job.job_id,
+            submission_id=sub1.submission_id,
+            ai_grade=4.0,
+            ai_feedback="Good Answer",
+            ai_graded_at=datetime.now(timezone.utc),
+        )
         sub_repo.mark_failed(job.job_id, sub2.submission_id, "Bedrock error")
+        sub_repo.mark_failed(job.job_id, sub3.submission_id, "Bedrock error")
+
         job_repo.update_status(
-            job.job_id, JobStatus.COMPLETED_WITH_ERRORS, success_count=0, fail_count=2
+            job.job_id, JobStatus.COMPLETED_WITH_ERRORS, success_count=1, fail_count=2
         )
 
         call_count = 0
@@ -350,13 +360,13 @@ class TestRetryFailed:
         failed = [s for s in subs if s.grading_status == GradingStatus.FAILED]
         graded = [s for s in subs if s.grading_status == GradingStatus.GRADED]
 
-        assert len(graded) == 1
+        assert len(graded) == 2
         assert len(failed) == 1
         assert "Still broken" in failed[0].grading_error
 
         updated_job = job_repo.get(job.job_id)
         assert updated_job.status == JobStatus.COMPLETED_WITH_ERRORS
-        assert updated_job.success_count == 1
+        assert updated_job.success_count == 2
         assert updated_job.fail_count == 1
         assert "Still broken" in updated_job.error_message
 
