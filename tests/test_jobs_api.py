@@ -744,11 +744,8 @@ class TestSubmissionOverride:
         )
 
         resp = client.get(f"/jobs/{job_id}/submissions", headers=auth)
-        print("STATUS:", resp.status_code, "BODY:", resp.json())
+        assert resp.status_code == 200, resp.json()
         subs = resp.json()
-        submission_id = subs[0]["submission_id"]
-
-        subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
         submission_id = subs[0]["submission_id"]
 
         # First set an override
