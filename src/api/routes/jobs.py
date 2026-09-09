@@ -9,7 +9,7 @@ from src.auth.session import SessionUser, require_instructor
 from src.core.observability import logger, metrics, MetricUnit
 from src.core.validation import validate_grade
 from src.models.grading_job import GradingJob, GradingJobCreate, JobStatus
-from src.models.submission import Submission
+from src.models.submission import Submission, GradingStatus
 from src.repositories.grading_job import GradingJobRepository
 from src.repositories.submission import SubmissionRepository
 from src.services.grading import GradingService
@@ -146,6 +146,33 @@ def cancel_job(
     return cancelled
 
 
+@router.post("/{job_id}/retry-failed", response_model=GradingJob)
+def retry_failed_job(
+    job_id: UUID,
+    session: SessionUser = Depends(require_instructor),
+) -> GradingJob:
+    """Retry only the submissions that failed on a partially-completed job."""
+    logger.info(
+        "Retrying failed submissions", job_id=str(job_id), course_id=session.course_id
+    )
+    job_repo = _get_job_repo()
+    job = job_repo.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.course_id != session.course_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if job.status != JobStatus.COMPLETED_WITH_ERRORS:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job is {job.status}, must be COMPLETED WITH ERRORS to retry",
+        )
+
+    service = _get_grading_service()
+    metrics.add_metric(name="GradingJobRetried", unit=MetricUnit.Count, value=1)
+    service.retry_failed(job_id)
+    return job_repo.get(job_id)
+
+
 @router.get("/{job_id}/submissions", response_model=list[Submission])
 def list_submissions(
     job_id: UUID,
@@ -186,10 +213,10 @@ def override_submission(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.course_id != session.course_id:
         raise HTTPException(status_code=403, detail="Access denied")
-    if job.status != JobStatus.COMPLETED:
+    if job.status not in (JobStatus.COMPLETED, JobStatus.COMPLETED_WITH_ERRORS):
         raise HTTPException(
             status_code=409,
-            detail=f"Job is {job.status}, must be COMPLETED to override a grade",
+            detail=f"Job is {job.status}, must be COMPLETED or COMPLETED WITH ERRORS to override a grade",
         )
 
     sub_repo = _get_sub_repo()
@@ -207,6 +234,10 @@ def override_submission(
         )
 
     if body.revert:
+        if submission.grading_status == GradingStatus.FAILED:
+            raise HTTPException(
+                status_code=422, detail="Cannot revert override on a failed submission."
+            )
         updated = sub_repo.clear_override(job_id, submission_id)
         if updated is None:
             raise HTTPException(status_code=404, detail="Submission not found")

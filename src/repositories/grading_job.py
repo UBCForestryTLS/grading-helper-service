@@ -42,6 +42,8 @@ class GradingJobRepository:
             "total_submissions": job.total_submissions,
             "created_at": created_at,
             "updated_at": updated_at,
+            "success_count": job.success_count,
+            "fail_count": job.fail_count,
         }
         if job.error_message is not None:
             item["error_message"] = job.error_message
@@ -60,6 +62,8 @@ class GradingJobRepository:
             created_at=datetime.fromisoformat(item["created_at"]),
             updated_at=datetime.fromisoformat(item["updated_at"]),
             error_message=item.get("error_message"),
+            success_count=int(item.get("success_count", 0)),
+            fail_count=int(item.get("fail_count", 0)),
         )
 
     def create(self, job: GradingJob) -> GradingJob:
@@ -88,7 +92,12 @@ class GradingJobRepository:
         return [self._from_item(item) for item in response["Items"]]
 
     def update_status(
-        self, job_id: UUID, status: JobStatus, error_message: str | None = None
+        self,
+        job_id: UUID,
+        status: JobStatus,
+        error_message: str | None = None,
+        success_count: int | None = None,
+        fail_count: int | None = None,
     ) -> GradingJob | None:
         now = datetime.now(timezone.utc).isoformat()
         update_expr = (
@@ -104,6 +113,14 @@ class GradingJobRepository:
         if error_message is not None:
             update_expr += ", error_message = :error_message"
             expr_values[":error_message"] = error_message
+
+        if success_count is not None:
+            update_expr += ",success_count = :success_count"
+            expr_values[":success_count"] = success_count
+
+        if fail_count is not None:
+            update_expr += ",fail_count = :fail_count"
+            expr_values[":fail_count"] = fail_count
 
         self.table.update_item(
             Key={"pk": f"JOB#{job_id}", "sk": "METADATA"},
