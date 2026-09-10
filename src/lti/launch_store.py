@@ -43,6 +43,7 @@ class LaunchStore:
             "canvas_user_id": str(custom.get("canvas_user_id", claims.get("sub", ""))),
             "course_id": str(custom.get("canvas_course_id", context.get("id", ""))),
             "iss": claims.get("iss", ""),
+            "name": claims.get("name", ""),
             "ttl": int(time.time()) + 86400,  # 24h
         }
 

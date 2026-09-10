@@ -55,9 +55,19 @@ def create_job(
             quiz_id=body.quiz_id,
             job_name=body.job_name,
             canvas_data=body.canvas_data,
+            custom_prompt=body.custom_prompt,
         )
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.errors())
+
+
+@router.get("/default-prompt", response_model=dict)
+def get_default_prompt(
+    session: SessionUser = Depends(require_instructor),
+) -> dict:
+    from src.services.grading import DEFAULT_INSTRUCTIONS
+
+    return {"default_prompt": DEFAULT_INSTRUCTIONS}
 
 
 @router.get("/{job_id}", response_model=GradingJob)
@@ -221,12 +231,13 @@ def override_submission(
             status_code=422,
             detail="Feedback cannot be empty.",
         )
+
     updated = sub_repo.set_override(
         job_id,
         submission_id,
         body.grade,
         body.feedback,
-        session.canvas_user_id,
+        session.name or session.canvas_user_id,
     )
 
     if updated is None:

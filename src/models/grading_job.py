@@ -40,3 +40,4 @@ class GradingJobCreate(BaseModel):
     quiz_id: str
     job_name: str
     canvas_data: dict
+    custom_prompt: str | None = None
