@@ -45,8 +45,6 @@ class GradingJobRepository:
             "success_count": job.success_count,
             "fail_count": job.fail_count,
         }
-        if job.error_message is not None:
-            item["error_message"] = job.error_message
 
         if job.error_message is not None:
             item["error_message"] = job.error_message

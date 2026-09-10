@@ -116,6 +116,40 @@ class TestGradingJobRepository:
         assert result.created_at == job.created_at
         assert result.updated_at == job.updated_at
 
+    def test_roundtrip_preserves_custom_and_effective_prompt(self, dynamodb_table):
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(
+            course_id="C100",
+            quiz_id="Q50",
+            job_name="Test Job",
+            total_questions=5,
+            total_submissions=25,
+            custom_prompt="Focus on partial credit",
+        )
+        repo.create(job)
+
+        result = repo.get(job.job_id)
+        assert result.custom_prompt == "Focus on partial credit"
+        assert result.effective_prompt is None
+
+    def test_set_effective_prompt(self, dynamodb_table):
+        repo = GradingJobRepository(table=dynamodb_table)
+        job = GradingJob(
+            course_id="C100",
+            quiz_id="Q50",
+            job_name="Test Job",
+            total_questions=5,
+            total_submissions=25,
+        )
+        repo.create(job)
+
+        updated = repo.set_effective_prompt(job.job_id, "Final assembled prompt text")
+        assert updated is not None
+        assert updated.effective_prompt == "Final assembled prompt text"
+
+        result = repo.get(job.job_id)
+        assert result.effective_prompt == "Final assembled prompt text"
+
 
 class TestSubmissionRepository:
     def test_batch_create_and_list(self, dynamodb_table):
