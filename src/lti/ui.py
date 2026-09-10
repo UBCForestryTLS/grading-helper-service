@@ -482,7 +482,7 @@ def render_instructor_ui(
         const resp = await fetch(BASE_URL + '/lti/jobs', {{
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({{ launch_id: LAUNCH_ID, quiz_id: quizId, quiz_title: quizTitle, custom_prompt: customPrompt }}),
+          body: JSON.stringify({{ launch_id: LAUNCH_ID, quiz_id: quizId, quiz_title: quizTitle, customPrompt: customPrompt }}),
         }});
         if (!resp.ok) {{
           document.getElementById('grading-status').textContent = await getErrorMessage(resp);
