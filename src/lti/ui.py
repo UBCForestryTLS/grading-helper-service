@@ -477,7 +477,7 @@ def render_instructor_ui(
 
       try {{
         const promptValue = document.getElementById('grading-prompt').value.trim();
-        const customPrompt = promptValue === default.Prompt.trim() ? null : promptValue;
+        const customPrompt = promptValue === defaultPrompt.trim() ? null : promptValue;
 
         const resp = await fetch(BASE_URL + '/lti/jobs', {{
           method: 'POST',
