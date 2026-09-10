@@ -204,7 +204,7 @@ def render_instructor_ui(
             <textarea
             id="grading-prompt"
             rows="8"
-            placeholder="Loading grading instructions..."
+            placeholder="Enter grading instructions here"
             ></textarea>
 
             <div class="prompt-notice">
@@ -476,10 +476,13 @@ def render_instructor_ui(
       document.getElementById('grading-status').textContent = 'Creating grading job...';
 
       try {{
+        const promptValue = document.getElementById('grading-prompt').value.trim();
+        const customPrompt = promptValue === default.Prompt.trim() ? null : promptValue;
+
         const resp = await fetch(BASE_URL + '/lti/jobs', {{
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({{ launch_id: LAUNCH_ID, quiz_id: quizId, quiz_title: quizTitle }}),
+          body: JSON.stringify({{ launch_id: LAUNCH_ID, quiz_id: quizId, quiz_title: quizTitle, custom_prompt=custom_prompt }}),
         }});
         if (!resp.ok) {{
           document.getElementById('grading-status').textContent = await getErrorMessage(resp);
