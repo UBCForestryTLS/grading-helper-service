@@ -117,6 +117,43 @@ def render_instructor_ui(
       max-width: 250px; word-break: break-word;
     }}
     #history-table tbody tr:hover {{ background: #f8f8f8; }}
+    .prompt-section {{
+        margin: 16px 0;
+    }}
+
+    .prompt-section h3 {{
+        margin: 0 0 6px 0;
+        font-size: 1em;
+    }}
+
+    .prompt-description {{
+        font-size: 0.9em;
+        color: #666;
+        margin: 0 0 8px 0;
+    }}
+
+    #grading-prompt {{
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        font-family: inherit;
+        font-size: 0.9em;
+        line-height: 1.4;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+    }}
+
+    #grading-prompt:focus {{
+        outline: none;
+        border-color: #0066cc;
+    }}
+
+    .prompt-notice {{
+        margin-top: 6px;
+        font-size: 0.8em;
+        color: #666;
+    }}
   </style>
 </head>
 <body>
@@ -157,10 +194,28 @@ def render_instructor_ui(
         <select id="quiz-select">
           <option value="">-- Select a quiz --</option>
         </select>
+        <div id="prompt-section" class="prompt-section">
+            <h3>Grading Instructions</h3>
+            <p class="prompt-description">
+            These instructions will be used by the AI when grading student submissions.
+            You can customize them before starting the grading job.
+            </p>
+
+            <textarea
+            id="grading-prompt"
+            rows="8"
+            placeholder="Loading grading instructions..."
+            ></textarea>
+
+            <div class="prompt-notice">
+            Additional technical grading instructions are automatically applied and
+            cannot be modified.
+            </div>
+        </div>
         <button id="btn-start-grading" onclick="startGrading()" disabled>
           Start AI Grading
         </button>
-		<button id="btn-cancel-grading" style="display:none;">Cancel Grading</button>
+        <button id="btn-cancel-grading" style="display:none;">Cancel Grading</button>
       </div>
       <div id="auth-prompt" class="hidden">
         <p>Canvas access not authorized yet.</p>
@@ -252,6 +307,7 @@ def render_instructor_ui(
     let currentJobId = null;
     let pollTimer = null;
     let cameFromHistory = false;
+    let defaultPrompt = '';
 
     function authHeaders() {{
       return {{
@@ -339,6 +395,27 @@ def render_instructor_ui(
       }});
     }}
 
+    async function loadDefaultPrompt() {{
+        const promptInput = document.getElementById('grading-prompt');
+
+        try {{
+            const resp = await fetch(BASE_URL + '/jobs/default-prompt', {{
+            headers: authHeaders(),
+            }});
+
+            if (!resp.ok) {{
+            promptInput.placeholder = 'Could not load grading instructions.';
+            return;
+            }}
+
+            const data = await resp.json();
+            defaultPrompt = data.default_prompt || '';
+            promptInput.value = defaultPrompt;
+        }} catch (e) {{
+            promptInput.placeholder = 'Could not load grading instructions.';
+        }}
+        }}
+
     // Fetch the instructor's quizzes from Canvas via the LTI proxy endpoint.
     // If Canvas returns 401 the instructor needs to OAuth-authorize the tool;
     // we surface the authorize link instead of an error.
@@ -373,6 +450,7 @@ def render_instructor_ui(
           select.appendChild(opt);
         }});
         document.getElementById('quiz-list-container').classList.remove('hidden');
+        loadDefaultPrompt();
         select.addEventListener('change', () => {{
           document.getElementById('btn-start-grading').disabled = !select.value;
         }});
