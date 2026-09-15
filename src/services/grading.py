@@ -146,6 +146,11 @@ class GradingService:
             logger.info("No failed submissions to retry", job_id=str(job_id))
             return
 
+        job = self.job_repo.get(job_id)
+        system_prompt = job.effective_prompt or self._assemble_system_prompt(
+            job.custom_prompt
+        )
+
         logger.info(
             "Retrying failed submissions", job_id=str(job_id), count=len(failed_subs)
         )
@@ -153,7 +158,8 @@ class GradingService:
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = {
-                executor.submit(self._grade_submission, sub): sub for sub in failed_subs
+                executor.submit(self._grade_submission, sub, system_prompt): sub
+                for sub in failed_subs
             }
             for future in as_completed(futures):
                 sub = futures[future]
