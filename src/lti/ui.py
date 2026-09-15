@@ -233,9 +233,16 @@ def render_instructor_ui(
 
     <div id="section-results" class="card hidden">
       <div class="results-header">
-        <h2 id="results-title">Grading Results</h2>
+        <div>
+          <h2 id="results-title">Grading Results</h2>
+          <button id="btn-toggle-prompt" class="btn-link hidden" style="margin-top:4px; display:block;" onclick="togglePromptDisplay()">Show prompt used</button>
+        </div>
         <button id="btn-back-history" class="btn-link hidden"
                 onclick="backToHistory()">&larr; Back to Past Jobs</button>
+      </div>
+      <div id="prompt-display" class="card hidden" style="background:#f8f9fa; margin-bottom:12px;">
+       <h3 style="margin:0 0 8px 0; font-size:0.95em;">Prompt used for this job</h3>
+       <pre id="prompt-display-text" style="white-space:pre-wrap; font-size:0.85em; margin:0; font-family:inherit;"></pre>
       </div>
       <div class="stats-bar">
         <div class="stat">
@@ -308,6 +315,7 @@ def render_instructor_ui(
     let pollTimer = null;
     let cameFromHistory = false;
     let defaultPrompt = '';
+    let currentPrompt = '';
 
     function authHeaders() {{
       return {{
@@ -383,6 +391,10 @@ def render_instructor_ui(
       document.getElementById('results-title').textContent = 'Grading Results';
       document.getElementById('passback-status').classList.add('hidden');
       document.getElementById('btn-passback').disabled = false;
+      document.getElementById('grading-prompt').value = defaultPrompt;
+      document.getElementById('prompt-display').classList.add('hidden');
+      document.getElementById('btn-toggle-prompt').classList.add('hidden');
+      currentPrompt = '';
       setStep(1);
     }}
 
@@ -450,7 +462,7 @@ def render_instructor_ui(
           select.appendChild(opt);
         }});
         document.getElementById('quiz-list-container').classList.remove('hidden');
-        loadDefaultPrompt();
+        await loadDefaultPrompt();
         select.addEventListener('change', () => {{
           document.getElementById('btn-start-grading').disabled = !select.value;
         }});
@@ -565,6 +577,23 @@ def render_instructor_ui(
       }}, 2000);
     }}
 
+    function togglePromptDisplay() {{
+        const el = document.getElementById('prompt-display');
+        const btn = document.getElementById('btn-toggle-prompt');
+        const isHidden = el.classList.contains('hidden');
+
+        if(isHidden) {{
+            document.getElementById('prompt-display-text').textContent = currentPrompt;
+            el.classList.remove('hidden');
+            btn.textContent = 'Hide prompt used';
+        }} else {{
+            el.classList.add('hidden');
+            btn.textContent = 'Show prompt used';
+                }}
+            }}
+        
+
+
     // Fetch all submissions for the current job and render them grouped by
     // student. Computes summary stats (student count, question count, average
     // percentage, max points) and populates the results table with one
@@ -572,13 +601,28 @@ def render_instructor_ui(
     async function showResults() {{
       document.getElementById('btn-passback').disabled = false;
       document.getElementById('passback-status').classList.add('hidden');
+      document.getElementById('prompt-display').classList.add('hidden');
+      document.getElementById('btn-toggle-prompt').textContent = 'Show prompt used';
 
-      const resp = await fetch(BASE_URL + '/jobs/' + currentJobId + '/submissions', {{
+      const [subsResp, jobResp] = await Promise.all([
+      fetch(BASE_URL + '/jobs/' + currentJobId + '/submissions', {{
         headers: authHeaders(),
-      }});
-      if (!resp.ok) return;
-      const subs = await resp.json();
+      }}),
+      fetch(BASE_URL + '/jobs/' + currentJobId, {{
+        headers: authHeaders() 
+      }}),
+      ]);
 
+      if (!subsResp.ok) return;
+      const subs = await subsResp.json();
+      
+      currentPrompt = '';
+
+      if (jobResp.ok) {{
+        const job = await jobResp.json();
+        currentPrompt = job.effective_prompt || '';
+      }}
+      document.getElementById('btn-toggle-prompt').classList.toggle('hidden', !currentPrompt);
       const groups = {{}};
       const order = [];
       subs.forEach(sub => {{
