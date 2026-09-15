@@ -22,6 +22,8 @@ erDiagram
         string created_at
         string updated_at
         string error_message
+        string custom_prompt
+        string effective_prompt
     }
 
     Submission {
@@ -153,7 +155,9 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 | `total_submissions` | `int` | Number of student submissions |
 | `created_at` | `datetime` | UTC timestamp |
 | `updated_at` | `datetime` | UTC timestamp, updated on status change |
-| `error_message` | `str | None` | Error details if status is FAILED |
+| `error_message` | `str \| None` | Error details if status is FAILED |
+| `custom_prompt` | `str \| None` | Instructor-provided override for the grading system prompt, `None` if the default is used |
+| `effective_prompt` | `str \| None` | The fully-assembled system prompt actually sent to the model, `None` until the job is graded |
 
 ### JobStatus
 
@@ -175,6 +179,7 @@ Request body for `POST /jobs`. Defined in `src/models/grading_job.py`.
 | `quiz_id` | `str` | Canvas quiz ID |
 | `job_name` | `str` | Human-readable name |
 | `canvas_data` | `dict` | Raw Canvas quiz export data |
+| `custom_prompt` | `str \| None` | Optional instructor override for the grading prompt |
 
 ### Submission
 
