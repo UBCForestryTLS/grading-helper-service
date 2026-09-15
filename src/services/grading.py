@@ -216,24 +216,6 @@ class GradingService:
             ai_graded_at=now,
         )
 
-    # def _build_prompt(self, sub) -> str:
-    #     correct = (
-    #         "\n".join(f"- {a}" for a in sub.correct_answers)
-    #         if sub.correct_answers
-    #         else "None provided"
-    #     )
-    #     return (
-    #         "You are a teaching assistant grading student answers. "
-    #         "Grade the following submission and respond with ONLY a JSON object "
-    #         '(no markdown, no explanation) with keys "grade" (number) and "feedback" (string).\n\n'
-    #         f"Question type: {sub.question_type}\n"
-    #         f"Question: {sub.question_text}\n"
-    #         f"Points possible: {sub.points_possible}\n"
-    #         f"Correct/expected answers:\n{correct}\n\n"
-    #         f"Student answer: {sub.student_answer}\n\n"
-    #         "Respond with JSON only."
-    #     )
-
     def _build_user_content(self, sub) -> str:
         correct = (
             "\n".join(f"- {a}" for a in sub.correct_answers)
