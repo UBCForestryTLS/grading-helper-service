@@ -21,7 +21,12 @@ class IngestionService:
         self.sub_repo = sub_repo or SubmissionRepository()
 
     def ingest(
-        self, course_id: str, quiz_id: str, job_name: str, canvas_data: dict
+        self,
+        course_id: str,
+        quiz_id: str,
+        job_name: str,
+        canvas_data: dict,
+        custom_prompt: str | None = None,
     ) -> GradingJob:
         """Parse Canvas data and create a grading job with submissions.
 
@@ -66,6 +71,7 @@ class IngestionService:
             job_name=job_name,
             total_questions=len(questions),
             total_submissions=len(submissions),
+            custom_prompt=custom_prompt,
         )
 
         if not submissions:
@@ -88,6 +94,7 @@ class IngestionService:
         quiz_submissions: list[dict],
         answers_by_user: dict[str, list[dict]],
         assignment_id: str = "",
+        custom_prompt: str | None = None,
     ) -> GradingJob:
         """Create a grading job directly from Canvas REST API response data.
 
@@ -163,6 +170,7 @@ class IngestionService:
             job_name=job_name,
             total_questions=len(gradable_questions),
             total_submissions=len(submissions),
+            custom_prompt=custom_prompt,
         )
 
         if not submissions:

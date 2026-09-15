@@ -32,6 +32,8 @@ class GradingJob(BaseModel):
     error_message: str | None = None
     success_count: int = 0
     fail_count: int = 0
+    custom_prompt: str | None = None
+    effective_prompt: str | None = None
 
 
 class GradingJobCreate(BaseModel):
@@ -41,3 +43,4 @@ class GradingJobCreate(BaseModel):
     quiz_id: str
     job_name: str
     canvas_data: dict
+    custom_prompt: str | None = None

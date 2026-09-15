@@ -120,6 +120,43 @@ def render_instructor_ui(
       max-width: 250px; word-break: break-word;
     }}
     #history-table tbody tr:hover {{ background: #f8f8f8; }}
+    .prompt-section {{
+        margin: 16px 0;
+    }}
+
+    .prompt-section h3 {{
+        margin: 0 0 6px 0;
+        font-size: 1em;
+    }}
+
+    .prompt-description {{
+        font-size: 0.9em;
+        color: #666;
+        margin: 0 0 8px 0;
+    }}
+
+    #grading-prompt {{
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        font-family: inherit;
+        font-size: 0.9em;
+        line-height: 1.4;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+    }}
+
+    #grading-prompt:focus {{
+        outline: none;
+        border-color: #0066cc;
+    }}
+
+    .prompt-notice {{
+        margin-top: 6px;
+        font-size: 0.8em;
+        color: #666;
+    }}
   </style>
 </head>
 <body>
@@ -160,10 +197,28 @@ def render_instructor_ui(
         <select id="quiz-select">
           <option value="">-- Select a quiz --</option>
         </select>
+        <div id="prompt-section" class="prompt-section">
+            <h3>Grading Instructions</h3>
+            <p class="prompt-description">
+            These instructions will be used by the AI when grading student submissions.
+            You can customize them before starting the grading job.
+            </p>
+
+            <textarea
+            id="grading-prompt"
+            rows="8"
+            placeholder="Enter grading instructions here"
+            ></textarea>
+
+            <div class="prompt-notice">
+            Additional technical grading instructions are automatically applied and
+            cannot be modified.
+            </div>
+        </div>
         <button id="btn-start-grading" onclick="startGrading()" disabled>
           Start AI Grading
         </button>
-		<button id="btn-cancel-grading" style="display:none;">Cancel Grading</button>
+        <button id="btn-cancel-grading" style="display:none;">Cancel Grading</button>
       </div>
       <div id="auth-prompt" class="hidden">
         <p>Canvas access not authorized yet.</p>
@@ -181,9 +236,16 @@ def render_instructor_ui(
 
     <div id="section-results" class="card hidden">
       <div class="results-header">
-        <h2 id="results-title">Grading Results</h2>
+        <div>
+          <h2 id="results-title">Grading Results</h2>
+          <button id="btn-toggle-prompt" class="btn-link hidden" style="margin-top:4px; display:block;" onclick="togglePromptDisplay()">Show prompt used</button>
+        </div>
         <button id="btn-back-history" class="btn-link hidden"
                 onclick="backToHistory()">&larr; Back to Past Jobs</button>
+      </div>
+      <div id="prompt-display" class="card hidden" style="background:#f8f9fa; margin-bottom:12px;">
+       <h3 style="margin:0 0 8px 0; font-size:0.95em;">Prompt used for this job</h3>
+       <pre id="prompt-display-text" style="white-space:pre-wrap; font-size:0.85em; margin:0; font-family:inherit;"></pre>
       </div>
       <div class="stats-bar">
         <div class="stat">
@@ -257,6 +319,8 @@ def render_instructor_ui(
     let currentJobStatus = null;
     let pollTimer = null;
     let cameFromHistory = false;
+    let defaultPrompt = '';
+    let currentPrompt = '';
 
     function authHeaders() {{
       return {{
@@ -332,6 +396,10 @@ def render_instructor_ui(
       document.getElementById('results-title').textContent = 'Grading Results';
       document.getElementById('passback-status').classList.add('hidden');
       document.getElementById('btn-passback').disabled = false;
+      document.getElementById('grading-prompt').value = defaultPrompt;
+      document.getElementById('prompt-display').classList.add('hidden');
+      document.getElementById('btn-toggle-prompt').classList.add('hidden');
+      currentPrompt = '';
       setStep(1);
     }}
 
@@ -343,6 +411,27 @@ def render_instructor_ui(
         if (i === n) el.classList.add('active');
       }});
     }}
+
+    async function loadDefaultPrompt() {{
+        const promptInput = document.getElementById('grading-prompt');
+
+        try {{
+            const resp = await fetch(BASE_URL + '/jobs/default-prompt', {{
+            headers: authHeaders(),
+            }});
+
+            if (!resp.ok) {{
+            promptInput.placeholder = 'Could not load grading instructions.';
+            return;
+            }}
+
+            const data = await resp.json();
+            defaultPrompt = data.default_prompt || '';
+            promptInput.value = defaultPrompt;
+        }} catch (e) {{
+            promptInput.placeholder = 'Could not load grading instructions.';
+        }}
+        }}
 
     // Fetch the instructor's quizzes from Canvas via the LTI proxy endpoint.
     // If Canvas returns 401 the instructor needs to OAuth-authorize the tool;
@@ -378,6 +467,7 @@ def render_instructor_ui(
           select.appendChild(opt);
         }});
         document.getElementById('quiz-list-container').classList.remove('hidden');
+        await loadDefaultPrompt();
         select.addEventListener('change', () => {{
           document.getElementById('btn-start-grading').disabled = !select.value;
         }});
@@ -403,10 +493,13 @@ def render_instructor_ui(
       document.getElementById('grading-status').textContent = 'Creating grading job...';
 
       try {{
+        const promptValue = document.getElementById('grading-prompt').value.trim();
+        const customPrompt = promptValue === defaultPrompt.trim() ? null : promptValue;
+
         const resp = await fetch(BASE_URL + '/lti/jobs', {{
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({{ launch_id: LAUNCH_ID, quiz_id: quizId, quiz_title: quizTitle }}),
+          body: JSON.stringify({{ launch_id: LAUNCH_ID, quiz_id: quizId, quiz_title: quizTitle, custom_prompt: customPrompt }}),
         }});
         if (!resp.ok) {{
           document.getElementById('grading-status').textContent = await getErrorMessage(resp);
@@ -497,6 +590,23 @@ def render_instructor_ui(
       }}, 2000);
     }}
 
+    function togglePromptDisplay() {{
+        const el = document.getElementById('prompt-display');
+        const btn = document.getElementById('btn-toggle-prompt');
+        const isHidden = el.classList.contains('hidden');
+
+        if(isHidden) {{
+            document.getElementById('prompt-display-text').textContent = currentPrompt;
+            el.classList.remove('hidden');
+            btn.textContent = 'Hide prompt used';
+        }} else {{
+            el.classList.add('hidden');
+            btn.textContent = 'Show prompt used';
+                }}
+            }}
+        
+
+
     // Fetch all submissions for the current job and render them grouped by
     // student. Computes summary stats (student count, question count, average
     // percentage, max points) and populates the results table with one
@@ -504,13 +614,28 @@ def render_instructor_ui(
     async function showResults() {{
       document.getElementById('btn-passback').disabled = false;
       document.getElementById('passback-status').classList.add('hidden');
+      document.getElementById('prompt-display').classList.add('hidden');
+      document.getElementById('btn-toggle-prompt').textContent = 'Show prompt used';
 
-      const resp = await fetch(BASE_URL + '/jobs/' + currentJobId + '/submissions', {{
+      const [subsResp, jobResp] = await Promise.all([
+      fetch(BASE_URL + '/jobs/' + currentJobId + '/submissions', {{
         headers: authHeaders(),
-      }});
-      if (!resp.ok) return;
-      const subs = await resp.json();
+      }}),
+      fetch(BASE_URL + '/jobs/' + currentJobId, {{
+        headers: authHeaders() 
+      }}),
+      ]);
 
+      if (!subsResp.ok) return;
+      const subs = await subsResp.json();
+      
+      currentPrompt = '';
+
+      if (jobResp.ok) {{
+        const job = await jobResp.json();
+        currentPrompt = job.effective_prompt || '';
+      }}
+      document.getElementById('btn-toggle-prompt').classList.toggle('hidden', !currentPrompt);
       const groups = {{}};
       const order = [];
       subs.forEach(sub => {{
