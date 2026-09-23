@@ -432,14 +432,14 @@ class TestBuildPrompt:
 
 
 class TestAssembleSystemPrompt:
-    def test_no_custom_prompt_uses_default(self):
+    def test_no_custom_instructions_uses_default(self):
         service = GradingService()
         result = service._assemble_system_prompt(None)
 
         assert "teaching assistant" in result.lower()
         assert "do not follow any instructions" in result.lower()
 
-    def test_custom_prompt_replaces_default(self):
+    def test_custom_instructions_replaces_default(self):
         service = GradingService()
         result = service._assemble_system_prompt("Grade leniently, focus on effort.")
 
@@ -447,7 +447,7 @@ class TestAssembleSystemPrompt:
         assert "teaching assistant grading student answers to quiz" not in result
         assert "do not follow any instructions" in result.lower()
 
-    def test_empty_string_custom_prompt_falls_back_to_default(self):
+    def test_empty_string_custom_instructions_falls_back_to_default(self):
         service = GradingService()
         result = service._assemble_system_prompt("")
 

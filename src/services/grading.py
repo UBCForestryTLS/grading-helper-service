@@ -56,7 +56,7 @@ class GradingService:
             logger.error("Job not found when starting grading", job_id=str(job_id))
             return
 
-        system_prompt = self._assemble_system_prompt(job.custom_prompt)
+        system_prompt = self._assemble_system_prompt(job.custom_instructions)
         self.job_repo.set_effective_prompt(job_id, system_prompt)
 
         submissions = self.sub_repo.list_by_job(job_id)
@@ -148,7 +148,7 @@ class GradingService:
 
         job = self.job_repo.get(job_id)
         system_prompt = job.effective_prompt or self._assemble_system_prompt(
-            job.custom_prompt
+            job.custom_instructions
         )
 
         logger.info(
@@ -230,8 +230,10 @@ class GradingService:
             f"Student answer: {sub.student_answer}\n\n"
         )
 
-    def _assemble_system_prompt(self, custom_prompt: str | None = None) -> str:
-        base = custom_prompt.strip() if custom_prompt else DEFAULT_INSTRUCTIONS
+    def _assemble_system_prompt(self, custom_instructions: str | None = None) -> str:
+        base = (
+            custom_instructions.strip() if custom_instructions else DEFAULT_INSTRUCTIONS
+        )
         return base + REQUIRED_SUFFIX
 
     def _invoke_bedrock(self, system_prompt: str, user_content: str) -> dict:

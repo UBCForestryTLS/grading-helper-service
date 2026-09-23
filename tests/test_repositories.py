@@ -124,12 +124,12 @@ class TestGradingJobRepository:
             job_name="Test Job",
             total_questions=5,
             total_submissions=25,
-            custom_prompt="Focus on partial credit",
+            custom_instructions="Focus on partial credit",
         )
         repo.create(job)
 
         result = repo.get(job.job_id)
-        assert result.custom_prompt == "Focus on partial credit"
+        assert result.custom_instructions == "Focus on partial credit"
         assert result.effective_prompt is None
 
     def test_set_effective_prompt(self, dynamodb_table):

@@ -55,7 +55,7 @@ def create_job(
             quiz_id=body.quiz_id,
             job_name=body.job_name,
             canvas_data=body.canvas_data,
-            custom_prompt=body.custom_prompt,
+            custom_instructions=body.custom_instructions,
         )
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.errors())

@@ -48,8 +48,8 @@ class GradingJobRepository:
 
         if job.error_message is not None:
             item["error_message"] = job.error_message
-        if job.custom_prompt is not None:
-            item["custom_prompt"] = job.custom_prompt
+        if job.custom_instructions is not None:
+            item["custom_instructions"] = job.custom_instructions
         if job.effective_prompt is not None:
             item["effective_prompt"] = job.effective_prompt
 
@@ -70,7 +70,7 @@ class GradingJobRepository:
             error_message=item.get("error_message"),
             success_count=int(item.get("success_count", 0)),
             fail_count=int(item.get("fail_count", 0)),
-            custom_prompt=item.get("custom_prompt"),
+            custom_instructions=item.get("custom_instructions"),
             effective_prompt=item.get("effective_prompt"),
         )
 

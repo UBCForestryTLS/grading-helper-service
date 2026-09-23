@@ -81,7 +81,7 @@ Create a new grading job from Canvas quiz export data.
     "short_answer_question": [...],
     "fill_in_multiple_blanks_question": [...]
   },
-  "custom_prompt": null  
+  "custom_instructions": null  
 }
 ```
 
@@ -99,7 +99,7 @@ Create a new grading job from Canvas quiz export data.
   "created_at": "2026-03-10T15:30:00+00:00",
   "updated_at": "2026-03-10T15:30:00+00:00",
   "error_message": null,
-  "custom_prompt": null,
+  "custom_instructions": null,
   "effective_prompt": null 
 }
 ```
@@ -260,10 +260,10 @@ Create a grading job by fetching quiz data directly from Canvas.
   "launch_id": "abc123",
   "quiz_id": "67890",
   "quiz_title": "Midterm Quiz",
-  "custom_prompt": null
+  "custom_instructions": null
 }
 ```
-- **`custom_prompt`** (optional, max 1000 characters) — instructor override for the grading system prompt. If omitted or unchanged from the default, the job uses the default prompt.
+- **`custom_instructions`** (optional, max 1000 characters) — instructor override for the grading system prompt. If omitted or unchanged from the default, the job uses the default prompt.
 - **Errors:** 401 (no Canvas token), 502 (Canvas API failure), 503 (not configured)
 
 ### `POST /lti/passback/{job_id}`
