@@ -49,6 +49,20 @@ No authentication required. Returns the service status and current stage.
 
 All jobs endpoints require a valid session token. Jobs are scoped to the session's `course_id` — accessing a job from a different course returns 403.
 
+### `GET /jobs/default-prompt`
+
+Returns the default system prompt used for AI grading, so the instructor SPA can display it before job creation.
+
+- **Auth:** Required
+
+**Response:**
+```json
+{
+  "default_prompt": 
+    "You are a teaching assistant grading student answers to quiz questions. Grade the following submission fairly and consistently based on ..."
+}
+```
+
 ### `POST /jobs`
 
 Create a new grading job from Canvas quiz export data.
@@ -66,7 +80,8 @@ Create a new grading job from Canvas quiz export data.
   "canvas_data": {
     "short_answer_question": [...],
     "fill_in_multiple_blanks_question": [...]
-  }
+  },
+  "custom_instructions": null  
 }
 ```
 
@@ -83,7 +98,9 @@ Create a new grading job from Canvas quiz export data.
   "total_submissions": 120,
   "created_at": "2026-03-10T15:30:00+00:00",
   "updated_at": "2026-03-10T15:30:00+00:00",
-  "error_message": null
+  "error_message": null,
+  "custom_instructions": null,
+  "effective_prompt": null 
 }
 ```
 
@@ -112,6 +129,7 @@ Start AI grading for all submissions in a job. Uses Bedrock Claude Haiku 4.5 wit
 - **Auth:** Required
 - **Errors:** 404 if job not found, 403 if wrong course, 409 if job is not in `PENDING` status
 - The job status transitions: `PENDING` -> `PROCESSING` -> `COMPLETED` ,`COMPLETED_WITH_ERRORS` or `FAILED`
+- Once grading starts, the system prompt (default or custom, plus required technical instructions) is frozen and stored on the job as `effective_prompt`.
 
 **Response:** Updated `GradingJob` object
 
@@ -241,9 +259,11 @@ Create a grading job by fetching quiz data directly from Canvas.
 {
   "launch_id": "abc123",
   "quiz_id": "67890",
-  "quiz_title": "Midterm Quiz"
+  "quiz_title": "Midterm Quiz",
+  "custom_instructions": null
 }
 ```
+- **`custom_instructions`** (optional, max 1000 characters) — instructor override for the grading system prompt. If omitted or unchanged from the default, the job uses the default prompt.
 - **Errors:** 401 (no Canvas token), 502 (Canvas API failure), 503 (not configured)
 
 ### `POST /lti/passback/{job_id}`

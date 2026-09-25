@@ -45,8 +45,14 @@ class GradingJobRepository:
             "success_count": job.success_count,
             "fail_count": job.fail_count,
         }
+
         if job.error_message is not None:
             item["error_message"] = job.error_message
+        if job.custom_instructions is not None:
+            item["custom_instructions"] = job.custom_instructions
+        if job.effective_prompt is not None:
+            item["effective_prompt"] = job.effective_prompt
+
         return item
 
     def _from_item(self, item: dict) -> GradingJob:
@@ -64,6 +70,8 @@ class GradingJobRepository:
             error_message=item.get("error_message"),
             success_count=int(item.get("success_count", 0)),
             fail_count=int(item.get("fail_count", 0)),
+            custom_instructions=item.get("custom_instructions"),
+            effective_prompt=item.get("effective_prompt"),
         )
 
     def create(self, job: GradingJob) -> GradingJob:
@@ -127,6 +135,16 @@ class GradingJobRepository:
             UpdateExpression=update_expr,
             ExpressionAttributeValues=expr_values,
             ExpressionAttributeNames=expr_names,
+        )
+        return self.get(job_id)
+
+    def set_effective_prompt(
+        self, job_id: UUID, effective_prompt: str
+    ) -> GradingJob | None:
+        self.table.update_item(
+            Key={"pk": f"JOB#{job_id}", "sk": "METADATA"},
+            UpdateExpression="SET effective_prompt = :ep",
+            ExpressionAttributeValues={":ep": effective_prompt},
         )
         return self.get(job_id)
 
