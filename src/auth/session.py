@@ -17,6 +17,7 @@ class SessionUser(BaseModel):
     launch_id: str
     course_id: str
     canvas_user_id: str
+    name: str = ""
 
 
 ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"]
@@ -107,4 +108,5 @@ def require_instructor(
             status_code=403,
             detail="You do not have permission to perform this action.",
         )
+    session.name = launch.get("name", "")
     return session
