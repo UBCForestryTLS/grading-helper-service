@@ -102,11 +102,6 @@ async def lti_launch(request: Request):
             nonce=state_data["nonce"],
             deployment_id=settings.lti_deployment_id,
         )
-        logger.info(
-            "LTI claims received",
-            user_name=claims.get("name"),
-            canvas_user_id=claims.get("sub"),
-        )
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid launch token: {e}")
 
