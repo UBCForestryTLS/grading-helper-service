@@ -961,6 +961,110 @@ class TestSubmissionOverride:
         )
         assert response.status_code == 422
 
+    def test_override_submission_uses_session_name(
+        self,
+        client,
+        session_token,
+        dynamodb_table,
+    ):
+        """PATCH endpoint should use session.name in override."""
+        from uuid import uuid4
+        from datetime import datetime, timezone
+
+        from src.auth.session import SessionUser, require_instructor
+        from src.models.submission import Submission, GradingStatus
+        from src.models.grading_job import GradingJob, JobStatus
+
+        job_id = uuid4()
+        submission_id = uuid4()
+
+        mock_session = SessionUser(
+            launch_id="launch123",
+            course_id="course456",
+            canvas_user_id="user789",
+            name="Alice Smith",
+        )
+
+        mock_job = GradingJob(
+            job_id=job_id,
+            course_id="course456",
+            quiz_id="quiz123",
+            job_name="Test Quiz",
+            status=JobStatus.COMPLETED,
+            total_submissions=1,
+            created_at=datetime.now(timezone.utc),
+        )
+
+        mock_submission = Submission(
+            submission_id=submission_id,
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="Why?",
+            points_possible=10.0,
+            student_answer="Answer",
+            canvas_points=0.0,
+            correct_answers=[],
+            canvas_user_id="student123",
+            quiz_submission_id=999,
+            attempt=1,
+            ai_grade=7.0,
+            ai_feedback="Good",
+            ai_graded_at=datetime.now(timezone.utc),
+            grading_status=GradingStatus.GRADED,
+        )
+
+        updated_submission = Submission(
+            **{
+                **mock_submission.model_dump(),
+                "instructor_grade": 9.0,
+                "instructor_feedback": "Great",
+                "overridden_by": "Alice Smith",
+            }
+        )
+
+        # Create an app specifically for this test so we can override
+        # the require_instructor dependency.
+        with patch(
+            "src.core.aws.get_dynamodb_table",
+            return_value=dynamodb_table,
+        ):
+            app = create_app()
+            app.dependency_overrides[require_instructor] = lambda: mock_session
+
+            try:
+                with (
+                    patch("src.api.routes.jobs._get_job_repo") as mock_get_job_repo,
+                    patch("src.api.routes.jobs._get_sub_repo") as mock_get_sub_repo,
+                ):
+                    mock_get_job_repo.return_value.get.return_value = mock_job
+                    mock_get_sub_repo.return_value.get.return_value = mock_submission
+                    mock_get_sub_repo.return_value.set_override.return_value = (
+                        updated_submission
+                    )
+
+                    test_client = TestClient(app)
+
+                    response = test_client.patch(
+                        f"/jobs/{job_id}/submissions/{submission_id}",
+                        json={
+                            "grade": 9.0,
+                            "feedback": "Great",
+                        },
+                    )
+
+            finally:
+                app.dependency_overrides.clear()
+
+        assert response.status_code == 200, response.json()
+
+        mock_get_sub_repo.return_value.set_override.assert_called_once()
+
+        call_args = mock_get_sub_repo.return_value.set_override.call_args
+
+        assert call_args.args[4] == "Alice Smith"
+
 
 class TestRetryFailedJob:
     def test_retry_requires_completed_with_errors(

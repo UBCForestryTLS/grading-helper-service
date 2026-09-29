@@ -1032,7 +1032,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
     
             const feedbackCell = document.getElementById('feedback-cell-' + submissionId);
             feedbackCell.textContent = stripHtml(updated.effective_feedback) || '\u2014';
-            if (updated.instructor_feedback) {{
+            if (updated.instructor_feedback != null && updated.instructor_feedback !== '') {{
                 const feedbackBadge = document.createElement('span');
                 feedbackBadge.className = 'badge-override';
                 feedbackBadge.textContent = 'edited';
@@ -1058,9 +1058,6 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
                 overrideForm.appendChild(overrideInfo);
             }}
             overrideInfo.textContent = 'Last override by user ' + (updated.overridden_by || 'unknown');
-
-            document.getElementById('feedback-cell-' + submissionId).textContent =
-            stripHtml(updated.effective_feedback) || '\u2014';
 
         }} catch (e) {{
             msgEl.textContent = 'Could not connect. Please try again.';
@@ -1097,7 +1094,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             gradeCell.textContent = updated.effective_grade != null ? updated.effective_grade : '\u2014';
 
             document.getElementById('feedback-cell-' + submissionId).textContent =
-            stripHtml(updated.effective_feedback) || '\u2014';
+            stripHtml(updated.effective_feedback != null && updated.effective_feedback !== '') || '\u2014';
 
             document.getElementById('input-grade-' + submissionId).value = '';
             document.getElementById('input-feedback-' + submissionId).value = '';
