@@ -405,3 +405,147 @@ class TestSubmissionRepository:
         assert refetched.overridden_by == "instructor_123"
         assert refetched.effective_grade == 8.5
         assert refetched.effective_feedback == "Check citation 3"
+
+    def test_submission_repository_set_override_stores_name(self, dynamodb_table):
+        """set_override() should store the overridden_by name."""
+        from uuid import uuid4
+        from datetime import datetime, timezone
+        from src.models.submission import Submission, GradingStatus
+        from src.repositories.submission import SubmissionRepository
+
+        job_id = uuid4()
+        submission_id = uuid4()
+
+        repo = SubmissionRepository(table=dynamodb_table)
+
+        # Create a submission first
+        sub = Submission(
+            submission_id=submission_id,
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="Why is X?",
+            points_possible=10.0,
+            student_answer="Because Y",
+            canvas_points=0.0,
+            correct_answers=[],
+            canvas_user_id="student123",
+            quiz_submission_id=999,
+            attempt=1,
+            ai_grade=7.0,
+            ai_feedback="Good effort",
+            ai_graded_at=datetime.now(timezone.utc),
+            grading_status=GradingStatus.GRADED,
+        )
+
+        repo.batch_create([sub])
+
+        updated = repo.set_override(
+            job_id=job_id,
+            submission_id=submission_id,
+            grade=9.0,
+            feedback="Great answer",
+            overridden_by="Alice Smith",
+        )
+
+        assert updated.overridden_by == "Alice Smith"
+        assert updated.instructor_grade == 9.0
+        assert updated.instructor_feedback == "Great answer"
+        assert updated.overridden_at is not None
+
+    def test_submission_repository_set_override_with_fallback_to_user_id(
+        self, dynamodb_table
+    ):
+        """If name is empty, set_override should store the fallback canvas_user_id."""
+        from uuid import uuid4
+        from datetime import datetime, timezone
+        from src.models.submission import Submission, GradingStatus
+        from src.repositories.submission import SubmissionRepository
+
+        job_id = uuid4()
+        submission_id = uuid4()
+
+        repo = SubmissionRepository(table=dynamodb_table)
+
+        sub = Submission(
+            submission_id=submission_id,
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="Why is X?",
+            points_possible=10.0,
+            student_answer="Because Y",
+            canvas_points=0.0,
+            correct_answers=[],
+            canvas_user_id="student123",
+            quiz_submission_id=999,
+            attempt=1,
+            ai_grade=7.0,
+            ai_feedback="Good effort",
+            ai_graded_at=datetime.now(timezone.utc),
+            grading_status=GradingStatus.GRADED,
+        )
+
+        repo.batch_create([sub])
+
+        # Override with a user ID (simulating fallback when name is empty)
+        updated = repo.set_override(
+            job_id=job_id,
+            submission_id=submission_id,
+            grade=9.0,
+            feedback="Great answer",
+            overridden_by="42",  # Canvas user ID
+        )
+
+        assert updated.overridden_by == "42"
+
+    def test_submission_repository_clear_override_removes_attribution(
+        self, dynamodb_table
+    ):
+        """clear_override() should remove overridden_by and overridden_at."""
+        from uuid import uuid4
+        from datetime import datetime, timezone
+        from src.models.submission import Submission, GradingStatus
+        from src.repositories.submission import SubmissionRepository
+
+        job_id = uuid4()
+        submission_id = uuid4()
+
+        repo = SubmissionRepository(table=dynamodb_table)
+
+        # Create submission with override
+        sub = Submission(
+            submission_id=submission_id,
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="Why is X?",
+            points_possible=10.0,
+            student_answer="Because Y",
+            canvas_points=0.0,
+            correct_answers=[],
+            canvas_user_id="student123",
+            quiz_submission_id=999,
+            attempt=1,
+            ai_grade=7.0,
+            ai_feedback="Good effort",
+            ai_graded_at=datetime.now(timezone.utc),
+            instructor_grade=9.0,
+            instructor_feedback="Great",
+            overridden_by="Alice Smith",
+            overridden_at=datetime.now(timezone.utc),
+            grading_status=GradingStatus.GRADED,
+        )
+
+        repo.batch_create([sub])
+
+        # Clear the override
+        cleared = repo.clear_override(job_id, submission_id)
+
+        assert cleared.overridden_by is None
+        assert cleared.overridden_at is None
+        assert cleared.instructor_grade is None
+        assert cleared.instructor_feedback is None

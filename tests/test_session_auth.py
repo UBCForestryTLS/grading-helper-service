@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
 from src.api.app import create_app
+from src.lti.launch_store import LaunchStore
 
 
 class TestCreateSessionToken:
@@ -141,3 +142,58 @@ class TestRequireSession:
             },
         )
         assert response.status_code == 403
+
+    def test_require_instructor_populates_name_from_launch_store(self, monkeypatch):
+        """require_instructor() should load name from LaunchStore."""
+        from src.auth.session import require_instructor, SessionUser
+
+        mock_launch = {
+            "name": "Bob Jones",
+            "roles": [
+                "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"
+            ],
+        }
+
+        session = SessionUser(
+            launch_id="launch123",
+            course_id="course456",
+            canvas_user_id="user789",
+            name="",
+        )
+
+        monkeypatch.setattr(
+            LaunchStore,
+            "get",
+            lambda self, launch_id: mock_launch,
+        )
+
+        result = require_instructor(session)
+
+        assert result.name == "Bob Jones"
+
+    def test_require_instructor_empty_name_if_launch_missing_name(self, monkeypatch):
+        """If launch has no name, session.name should be empty string."""
+        from src.auth.session import require_instructor, SessionUser
+
+        mock_launch = {
+            # "name" is missing
+            "roles": [
+                "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"
+            ],
+        }
+
+        session = SessionUser(
+            launch_id="launch123",
+            course_id="course456",
+            canvas_user_id="user789",
+        )
+
+        monkeypatch.setattr(
+            LaunchStore,
+            "get",
+            lambda self, launch_id: mock_launch,
+        )
+
+        result = require_instructor(session)
+
+        assert result.name == ""
