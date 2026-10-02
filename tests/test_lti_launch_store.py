@@ -104,3 +104,56 @@ class TestLaunchStore:
         result = store.get(launch_id)
         assert isinstance(result["ags_scope"], list)
         assert len(result["ags_scope"]) == 2
+
+    def test_launch_store_captures_name_from_claims(self, dynamodb_table):
+        """LaunchStore.create() should extract and store the name claim."""
+        from src.lti.launch_store import LaunchStore
+
+        claims = {
+            "sub": "user123",
+            "name": "Alice Smith",
+            "iss": "https://canvas.instructure.com",
+            "https://purl.imsglobal.org/spec/lti/claim/context": {
+                "id": "course456",
+                "title": "Test Course",
+            },
+            "https://purl.imsglobal.org/spec/lti/claim/custom": {
+                "canvas_user_id": "user123",
+                "canvas_course_id": "course456",
+            },
+            "https://purl.imsglobal.org/spec/lti/claim/roles": [
+                "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"
+            ],
+        }
+
+        store = LaunchStore()
+        launch_id = store.create(claims)
+        retrieved = store.get(launch_id)
+
+        assert retrieved is not None
+        assert retrieved.get("name") == "Alice Smith"
+        assert retrieved.get("canvas_user_id") == "user123"
+
+    def test_launch_store_handles_missing_name(self, dynamodb_table):
+        """If name claim is absent, store empty string."""
+        from src.lti.launch_store import LaunchStore
+
+        claims = {
+            "sub": "user123",
+            # "name" is missing
+            "iss": "https://canvas.instructure.com",
+            "https://purl.imsglobal.org/spec/lti/claim/context": {"id": "course456"},
+            "https://purl.imsglobal.org/spec/lti/claim/custom": {
+                "canvas_user_id": "user123",
+                "canvas_course_id": "course456",
+            },
+            "https://purl.imsglobal.org/spec/lti/claim/roles": [
+                "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"
+            ],
+        }
+
+        store = LaunchStore()
+        launch_id = store.create(claims)
+        retrieved = store.get(launch_id)
+
+        assert retrieved.get("name") == ""
