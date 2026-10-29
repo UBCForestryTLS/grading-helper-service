@@ -29,13 +29,16 @@ def _make_submission(job_id=None, **kwargs):
     return Submission(**defaults)
 
 
-def _bedrock_response(grade, feedback):
+def _bedrock_response(grade, feedback, confidence=None):
+    payload = {"grade": grade, "feedback": feedback}
+    if confidence is not None:
+        payload["confidence"] = confidence
     body = json.dumps(
         {
             "content": [
                 {
                     "type": "text",
-                    "text": json.dumps({"grade": grade, "feedback": feedback}),
+                    "text": json.dumps(payload),
                 }
             ]
         }
@@ -74,6 +77,7 @@ class TestGradeJob:
         assert subs[0].ai_feedback == "Good answer"
         assert subs[0].ai_graded_at is not None
         assert subs[0].grading_status == GradingStatus.GRADED
+        assert subs[0].ai_confidence is None
 
     def test_grade_job_empty_submissions(self, dynamodb_table):
         job_repo = GradingJobRepository(table=dynamodb_table)
@@ -241,6 +245,45 @@ class TestGradeJob:
 
         updated_job = job_repo.get(job.job_id)
         assert updated_job.status == JobStatus.CANCELLED
+
+    def test_grade_job_confidence(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Confidence")
+        job_repo.create(job)
+        sub_repo.batch_create([_make_submission(job_id=job.job_id)])
+
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.return_value = _bedrock_response(4.0, "Good", 85)
+
+        service = GradingService(
+            job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
+        )
+        service.grade_job(job.job_id)
+
+        sub = sub_repo.list_by_job(job.job_id)[0]
+        assert sub.ai_confidence == 85
+        assert isinstance(sub.ai_confidence, int)
+
+    def test_grade_job_zero_confidence(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(course_id="C100", quiz_id="Q50", job_name="Zero Conf")
+        job_repo.create(job)
+        sub_repo.batch_create([_make_submission(job_id=job.job_id)])
+
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.return_value = _bedrock_response(4.0, "Unsure", 0)
+
+        service = GradingService(
+            job_repo=job_repo, sub_repo=sub_repo, bedrock_client=mock_bedrock
+        )
+        service.grade_job(job.job_id)
+
+        sub = sub_repo.list_by_job(job.job_id)[0]
+        assert sub.ai_confidence == 0
 
 
 class TestRetryFailed:
@@ -412,6 +455,13 @@ class TestAssembleUserPrompt:
 
         assert "None provided" in prompt
 
+    def test_build_user_content_asks_for_confidence(self):
+        service = GradingService()
+        sub = _make_submission()
+        prompt = service._build_user_content(sub)
+
+        assert "give your confidence in your grade" in prompt
+
 
 class TestAssembleSystemPrompt:
     def test_no_custom_instructions_uses_default(self):
@@ -433,30 +483,79 @@ class TestAssembleSystemPrompt:
 class TestParseResponse:
     def test_parse_response_valid(self):
         service = GradingService()
-        response = {"content": [{"text": '{"grade": 4.5, "feedback": "Well done"}'}]}
-        grade, feedback = service._parse_response(response, 5.0)
+        response = {
+            "content": [
+                {"text": '{"grade": 4.5, "feedback": "Well done", "confidence":85}'}
+            ]
+        }
+        grade, feedback, confidence = service._parse_response(response, 5.0)
         assert grade == 4.5
         assert feedback == "Well done"
+        assert confidence == 85
 
     def test_parse_response_markdown_wrapped(self):
         service = GradingService()
         response = {
             "content": [
-                {"text": '```json\n{"grade": 3.0, "feedback": "Partial credit"}\n```'}
+                {
+                    "text": '```json\n{"grade": 3.0, "feedback": "Partial credit", "confidence": 92}\n```'
+                }
             ]
         }
-        grade, feedback = service._parse_response(response, 5.0)
+        grade, feedback, confidence = service._parse_response(response, 5.0)
         assert grade == 3.0
         assert feedback == "Partial credit"
+        assert confidence == 92
 
     def test_parse_response_clamps_grade(self):
         service = GradingService()
-        response = {"content": [{"text": '{"grade": 10.0, "feedback": "Overgraded"}'}]}
-        grade, feedback = service._parse_response(response, 5.0)
+        response = {
+            "content": [
+                {"text": '{"grade": 10.0, "feedback": "Overgraded", "confidence": 70}'}
+            ]
+        }
+        grade, feedback, confidence = service._parse_response(response, 5.0)
         assert grade == 5.0
 
     def test_parse_response_clamps_negative(self):
         service = GradingService()
         response = {"content": [{"text": '{"grade": -1.0, "feedback": "Negative"}'}]}
-        grade, feedback = service._parse_response(response, 5.0)
+        grade, feedback, confidence = service._parse_response(response, 5.0)
         assert grade == 0.0
+        assert confidence is None
+
+    def test_parse_response_valid_confidence(self):
+        service = GradingService()
+        response = {
+            "content": [
+                {"text": ('{"grade": 8, "feedback": "Good answer", "confidence": 85}')}
+            ]
+        }
+
+        grade, feedback, confidence = service._parse_response(response, 10)
+
+        assert grade == 8
+        assert feedback == "Good answer"
+        assert confidence == 85
+
+    def test_parse_response_missing_confidence(self):
+        service = GradingService()
+        response = {"content": [{"text": '{"grade": 8, "feedback": "Good answer"}'}]}
+
+        grade, feedback, confidence = service._parse_response(response, 10)
+
+        assert grade == 8
+        assert confidence is None
+
+    def test_parse_response_invalid_confidence(self):
+        service = GradingService()
+        response = {
+            "content": [
+                {"text": ('{"grade": 8, "feedback": "Good answer", "confidence": 120}')}
+            ]
+        }
+
+        grade, feedback, confidence = service._parse_response(response, 10)
+
+        assert grade == 8
+        assert confidence is None

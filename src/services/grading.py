@@ -206,7 +206,9 @@ class GradingService:
     def _grade_submission(self, sub, system_prompt: str) -> None:
         user_content = self._build_user_content(sub)
         response = self._invoke_bedrock(system_prompt, user_content)
-        grade, feedback = self._parse_response(response, sub.points_possible)
+        grade, feedback, confidence = self._parse_response(
+            response, sub.points_possible
+        )
         now = datetime.now(timezone.utc)
         self.sub_repo.update_ai_grade(
             job_id=sub.job_id,
@@ -214,6 +216,7 @@ class GradingService:
             ai_grade=grade,
             ai_feedback=feedback,
             ai_graded_at=now,
+            ai_confidence=confidence,
         )
 
     def _build_user_content(self, sub) -> str:
@@ -228,6 +231,8 @@ class GradingService:
             f"Points possible: {sub.points_possible}\n"
             f"Correct/expected answers:\n{correct}\n\n"
             f"Student answer: {sub.student_answer}\n\n"
+            "Read the question, grade the student's answer, and give your confidence in your grade. "
+            "The confidence indicates how likely you think your grade is correct."
         )
 
     def _assemble_system_prompt(self, custom_instructions: str | None = None) -> str:
@@ -258,8 +263,12 @@ class GradingService:
                                     "type": "string",
                                     "description": "feedback for student explaining why their answer is correct or incorrect",
                                 },
+                                "confidence": {
+                                    "type": "integer",
+                                    "description": "0-100: how likely you think your grade is correct, meaning it differs from the grade a careful human grader would give by no more than 10% of the points possible. 100 = certain, 0 = certainly wrong.",
+                                },
                             },
-                            "required": ["grade", "feedback"],
+                            "required": ["grade", "feedback", "confidence"],
                             "additionalProperties": False,
                         },
                     }
@@ -276,7 +285,7 @@ class GradingService:
 
     def _parse_response(
         self, response: dict, points_possible: float
-    ) -> tuple[float, str]:
+    ) -> tuple[float, str, int | None]:
         text = response["content"][0]["text"]
 
         # Handle ```json wrapping
@@ -303,7 +312,23 @@ class GradingService:
         grade = float(parsed["grade"])
         feedback = str(parsed["feedback"])
 
+        raw_confidence = parsed.get("confidence")
+        confidence = None
+
+        if (
+            isinstance(raw_confidence, (int, float))
+            and not isinstance(raw_confidence, bool)
+            and 0 <= raw_confidence <= 100
+            and raw_confidence == int(raw_confidence)
+        ):
+            confidence = int(raw_confidence)
+
+        if confidence is None:
+            logger.warning(
+                "Invalid or missing confidence", raw_confidence=raw_confidence
+            )
+
         # Clamp grade to valid range
         grade = max(0.0, min(grade, points_possible))
 
-        return grade, feedback
+        return grade, feedback, confidence

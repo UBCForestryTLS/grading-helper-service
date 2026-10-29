@@ -1111,6 +1111,21 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             msgEl.style.color = '#cc0000';
         }}
     }}
+
+    // sort submissions by ascending or descending confidence scores
+    async function sortConfidence(jobId, submissionId, sortType){{
+
+    }}
+
+    // Filter submissions by predefined confidence levels (low, medium, high) or a custom confidence value
+    function filterByConfidence(jobId, submissionId, level){{
+
+    }}
+
+    // Filter for overridden vs non-overridden submissions
+    function filterOverride(jobId, submissionId, Override){{
+
+    }}
   </script>
 </body>
 </html>"""

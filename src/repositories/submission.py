@@ -46,6 +46,8 @@ class SubmissionRepository:
             item["ai_feedback"] = sub.ai_feedback
         if sub.ai_graded_at is not None:
             item["ai_graded_at"] = sub.ai_graded_at.isoformat()
+        if sub.ai_confidence is not None:
+            item["ai_confidence"] = sub.ai_confidence
 
         if sub.instructor_grade is not None:
             item["instructor_grade"] = str(sub.instructor_grade)
@@ -61,6 +63,11 @@ class SubmissionRepository:
         return item
 
     def _from_item(self, item: dict) -> Submission:
+        if "ai_confidence" in item:
+            ai_confidence = int(item["ai_confidence"])
+        else:
+            ai_confidence = None
+
         return Submission(
             submission_id=UUID(item["submission_id"]),
             job_id=UUID(item["job_id"]),
@@ -82,6 +89,7 @@ class SubmissionRepository:
                 if item.get("ai_graded_at")
                 else None
             ),
+            ai_confidence=ai_confidence,
             instructor_grade=float(item["instructor_grade"])
             if item.get("instructor_grade")
             else None,
@@ -125,16 +133,25 @@ class SubmissionRepository:
         ai_grade: float,
         ai_feedback: str,
         ai_graded_at: datetime,
+        ai_confidence: int | None = None,
     ) -> None:
+        update_expression = "SET ai_grade = :grade, ai_feedback = :feedback, ai_graded_at = :graded_at, grading_status = :status"
+
+        expression_values = {
+            ":grade": str(ai_grade),
+            ":status": str(GradingStatus.GRADED),
+            ":feedback": ai_feedback,
+            ":graded_at": ai_graded_at.isoformat(),
+        }
+
+        if ai_confidence is not None:
+            update_expression += ", ai_confidence = :confidence"
+            expression_values[":confidence"] = ai_confidence
+
         self.table.update_item(
             Key={"pk": f"JOB#{job_id}", "sk": f"SUB#{submission_id}"},
-            UpdateExpression="SET ai_grade = :grade, ai_feedback = :feedback, ai_graded_at = :graded_at, grading_status = :status",
-            ExpressionAttributeValues={
-                ":grade": str(ai_grade),
-                ":status": str(GradingStatus.GRADED),
-                ":feedback": ai_feedback,
-                ":graded_at": ai_graded_at.isoformat(),
-            },
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_values,
         )
 
     def set_override(
