@@ -178,6 +178,7 @@ List all submissions for a grading job, including AI grades and feedback if grad
     "canvas_user_id": "42",
     "ai_grade": 4.5,
     "ai_feedback": "Good understanding of the core concept...",
+	"ai_confidence": 85,
     "ai_graded_at": "2026-03-10T15:35:00+00:00",
     "instructor_grade": 5.0,
     "instructor_feedback": "Excellent explanation.",

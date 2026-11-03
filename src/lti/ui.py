@@ -397,14 +397,19 @@ def render_instructor_ui(
         (sub.instructor_feedback != null && sub.instructor_feedback !== '');
     }}
 
+    function confidenceBand(c) {{
+        if (c == null) return null;
+        if (c <= 50) return 'low';
+        if (c <= 79) return 'medium';
+        return 'high';
+    }}
+
     function matchesConfidence(sub) {{
       const c = sub.ai_confidence, m = filterState.conf;
       if (m === 'all') return true;
       if (m === 'none') return c == null;
       if (c == null) return false;
-      if (m === 'low') return c <= 50;
-      if (m === 'medium') return c >= 51 && c <= 79;
-      if (m === 'high') return c >= 80;
+      if (m === 'low' || m === 'medium' || m === 'high') return confidenceBand(c) === m;
 
       if (m === 'custom') {{
         if (filterState.value == null) {{
@@ -836,7 +841,15 @@ def render_instructor_ui(
         
           const tdC = document.createElement('td');
           tdC.id = 'confidence-cell-' + sub.submission_id;
-          tdC.textContent = sub.ai_confidence != null ? sub.ai_confidence : '\u2014';
+                    const band = confidenceBand(sub.ai_confidence);
+          if (band) {{
+            const b = document.createElement('span');
+            b.className = 'conf-badge conf-' + band;
+            b.textContent = band.charAt(0).toUpperCase() + band.slice(1) + ' (' + sub.ai_confidence + ')';
+            tdC.appendChild(b);
+          }} else {{
+            tdC.textContent = '\u2014';
+          }}
           tr.appendChild(tdC);
           
           const tdG = document.createElement('td');
