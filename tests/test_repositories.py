@@ -549,3 +549,107 @@ class TestSubmissionRepository:
         assert cleared.overridden_at is None
         assert cleared.instructor_grade is None
         assert cleared.instructor_feedback is None
+
+    def test_ai_confidence_zero_roundtrips(self, dynamodb_table):
+        from datetime import datetime, timezone
+
+        repo = SubmissionRepository(table=dynamodb_table)
+        job_id = uuid4()
+
+        sub = Submission(
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="Why?",
+            points_possible=5.0,
+            student_answer="A",
+            canvas_points=0.0,
+            correct_answers=[],
+        )
+
+        repo.batch_create([sub])
+
+        repo.update_ai_grade(
+            job_id=job_id,
+            submission_id=sub.submission_id,
+            ai_grade=3.0,
+            ai_feedback="Good answer",
+            ai_graded_at=datetime.now(timezone.utc),
+            ai_confidence=0,
+        )
+
+        result = repo.get(job_id, sub.submission_id)
+
+        assert result is not None
+        assert result.ai_confidence == 0
+        assert result.ai_grade == 3.0
+
+    def test_ai_confidence_roundtrips(self, dynamodb_table):
+        from datetime import datetime, timezone
+
+        repo = SubmissionRepository(table=dynamodb_table)
+        job_id = uuid4()
+
+        sub = Submission(
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="Why?",
+            points_possible=5.0,
+            student_answer="A",
+            canvas_points=0.0,
+            correct_answers=[],
+        )
+
+        repo.batch_create([sub])
+
+        repo.update_ai_grade(
+            job_id=job_id,
+            submission_id=sub.submission_id,
+            ai_grade=3.0,
+            ai_feedback="Good answer",
+            ai_graded_at=datetime.now(timezone.utc),
+            ai_confidence=85,
+        )
+
+        result = repo.get(job_id, sub.submission_id)
+
+        assert result is not None
+        assert result.ai_confidence == 85
+        assert result.ai_grade == 3.0
+
+    def test_ai_confidence_missing_defaults_to_none(self, dynamodb_table):
+        repo = SubmissionRepository(table=dynamodb_table)
+        job_id = uuid4()
+
+        sub = Submission(
+            job_id=job_id,
+            question_id=1,
+            question_name="Q1",
+            question_type="essay_question",
+            question_text="Why?",
+            points_possible=5.0,
+            student_answer="A",
+            canvas_points=0.0,
+            correct_answers=[],
+        )
+
+        repo.batch_create([sub])
+
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        repo.update_ai_grade(
+            job_id=job_id,
+            submission_id=sub.submission_id,
+            ai_grade=3.0,
+            ai_feedback="Good answer",
+            ai_graded_at=now,
+        )
+
+        result = repo.get(job_id, sub.submission_id)
+
+        assert result is not None
+        assert result.ai_confidence is None

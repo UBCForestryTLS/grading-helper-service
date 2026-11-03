@@ -5,6 +5,7 @@ from io import BytesIO
 from unittest.mock import MagicMock
 from uuid import uuid4
 from datetime import datetime, timezone
+import pytest
 
 from src.models.grading_job import GradingJob, JobStatus
 from src.models.submission import Submission, GradingStatus
@@ -285,6 +286,38 @@ class TestGradeJob:
         sub = sub_repo.list_by_job(job.job_id)[0]
         assert sub.ai_confidence == 0
 
+    def test_grade_job_invalid_confidence_still_saves_grade(self, dynamodb_table):
+        job_repo = GradingJobRepository(table=dynamodb_table)
+        sub_repo = SubmissionRepository(table=dynamodb_table)
+
+        job = GradingJob(
+            course_id="C100",
+            quiz_id="Q50",
+            job_name="Bad Confidence",
+        )
+        job_repo.create(job)
+
+        sub_repo.batch_create([_make_submission(job_id=job.job_id)])
+
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.return_value = _bedrock_response(4.0, "Good", 120)
+
+        service = GradingService(
+            job_repo=job_repo,
+            sub_repo=sub_repo,
+            bedrock_client=mock_bedrock,
+        )
+        service.grade_job(job.job_id)
+
+        updated_job = job_repo.get(job.job_id)
+        assert updated_job.status == JobStatus.COMPLETED
+
+        sub = sub_repo.list_by_job(job.job_id)[0]
+        assert sub.ai_grade == 4.0
+        assert sub.ai_feedback == "Good"
+        assert sub.ai_confidence is None
+        assert sub.grading_status == GradingStatus.GRADED
+
 
 class TestRetryFailed:
     def test_retry_only_touches_failed_submissions(self, dynamodb_table):
@@ -434,6 +467,20 @@ class TestRetryFailed:
         assert updated_job.status == JobStatus.COMPLETED
 
 
+class TestInvokeBedrock:
+    def test_request_schema_requires_confidence(self):
+        mock_bedrock = MagicMock()
+        mock_bedrock.invoke_model.return_value = _bedrock_response(4.0, "Good", 85)
+        service = GradingService(bedrock_client=mock_bedrock)
+
+        service._invoke_bedrock("system prompt", "user content")
+
+        body = json.loads(mock_bedrock.invoke_model.call_args.kwargs["body"])
+        schema = body["output_config"]["format"]["schema"]
+        assert "confidence" in schema["properties"]
+        assert "confidence" in schema["required"]
+
+
 class TestAssembleUserPrompt:
     def test_build_prompt_contains_question_info(self):
         service = GradingService()
@@ -547,15 +594,51 @@ class TestParseResponse:
         assert grade == 8
         assert confidence is None
 
-    def test_parse_response_invalid_confidence(self):
+    @pytest.mark.parametrize(
+        "confidence",
+        [120, -1, 85.5, True, "85", None],
+    )
+    def test_parse_response_invalid_confidence(self, confidence):
         service = GradingService()
         response = {
             "content": [
-                {"text": ('{"grade": 8, "feedback": "Good answer", "confidence": 120}')}
+                {
+                    "text": json.dumps(
+                        {
+                            "grade": 8,
+                            "feedback": "Good answer",
+                            "confidence": confidence,
+                        }
+                    )
+                }
             ]
         }
 
-        grade, feedback, confidence = service._parse_response(response, 10)
+        grade, feedback, parsed_confidence = service._parse_response(response, 10)
 
         assert grade == 8
-        assert confidence is None
+        assert feedback == "Good answer"
+        assert parsed_confidence is None
+
+    @pytest.mark.parametrize("confidence", [0, 100])
+    def test_parse_response_confidence_boundaries(self, confidence):
+        service = GradingService()
+        response = {
+            "content": [
+                {
+                    "text": json.dumps(
+                        {
+                            "grade": 8,
+                            "feedback": "Good answer",
+                            "confidence": confidence,
+                        }
+                    )
+                }
+            ]
+        }
+
+        grade, feedback, parsed_confidence = service._parse_response(response, 10)
+
+        assert grade == 8
+        assert feedback == "Good answer"
+        assert parsed_confidence == confidence
