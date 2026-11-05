@@ -157,7 +157,11 @@ def render_instructor_ui(
         font-size: 0.8em;
         color: #666;
     }}
-
+    .conf-badge {{ display: inline-block; padding: 2px 8px; border-radius: 12px;
+                font-size: 0.85em; font-weight: 600; white-space: nowrap; }}
+    .conf-low {{ background: #f8d7da; color: #721c24; }}
+    .conf-medium {{ background: #ffe5cc; color: #8a4b00; }}
+    .conf-high {{ background: #d4edda; color: #155724; }}
     .view-controls {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px;font-size: 0.9em; }}
     .view-controls select {{ width: auto; margin-bottom: 0; }}
     .student-tag {{ display: none; font-size: 0.8em; color: #666; margin-top: 2px; }}

@@ -232,7 +232,15 @@ class GradingService:
             f"Correct/expected answers:\n{correct}\n\n"
             f"Student answer: {sub.student_answer}\n\n"
             "Read the question, grade the student's answer, and give your confidence in your grade. "
-            "The confidence indicates how likely you think your grade is correct."
+            "The confidence indicates how likely you think your grade is correct. "
+            "Two factors affect how reliable your grade is, and your confidence should reflect them. "
+            "First, whether correct/expected answers were provided. Sample answers align your "
+            "grading with the instructor's expectations; without them, you must rely only on the "
+            "question and your own judgment of what is correct. "
+            "Second, the question type. Some question types limit the answers a student could "
+            "give. In a fill-in-the-blank question, the text surrounding the blank constrains "
+            "what is acceptable. In open-ended questions, there is more room for valid answers "
+            "that differ from what you expect."
         )
 
     def _assemble_system_prompt(self, custom_instructions: str | None = None) -> str:

@@ -642,3 +642,15 @@ class TestParseResponse:
         assert grade == 8
         assert feedback == "Good answer"
         assert parsed_confidence == confidence
+
+    def test_parse_response_logs_warning_when_confidence_dropped(self):
+        from unittest.mock import patch
+
+        service = GradingService()
+        response = {
+            "content": [{"text": '{"grade": 8, "feedback": "x", "confidence": 120}'}]
+        }
+        with patch("src.services.grading.logger") as mock_logger:
+            _, _, confidence = service._parse_response(response, 10)
+        assert confidence is None
+        mock_logger.warning.assert_called_once()

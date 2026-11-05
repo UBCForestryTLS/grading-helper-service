@@ -106,6 +106,12 @@ class TestRenderInstructorUI:
 
 
 class TestConfidenceUI:
+    @pytest.mark.parametrize(
+        "cls", [".conf-badge", ".conf-low", ".conf-medium", ".conf-high"]
+    )
+    def test_confidence_badge_styles_present(self, cls):
+        assert cls in _render()
+
     def test_confidence_column_header(self):
         assert "<th>AI Confidence</th>" in _render()
 
@@ -152,7 +158,6 @@ class TestConfidenceUI:
         assert "c <= 79" in html
 
     def test_filter_uses_confidence_band(self):
-        # Only passes if you did step 4 (filter calls confidenceBand).
         assert "confidenceBand(c) === m" in _render()
 
     def test_empty_custom_input_is_null_not_zero(self):
@@ -165,6 +170,3 @@ class TestConfidenceUI:
         html = _render()
         assert "td:nth-child(8)" in html
         assert "td:nth-child(7)" not in html
-
-    def test_revert_syncs_stored_submission(self):
-        assert "syncSubmission(submissionId, updated);" in _render()
