@@ -25,4 +25,6 @@ dev = [
     "httpx>=0.26",
     "moto>=5.0",
     "mkdocs-material>=9.6.23",
+    "playwright>=1.65.0",
+    "pytest-playwright>=0.10.0",
 ]
