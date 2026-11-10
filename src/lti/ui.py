@@ -293,16 +293,16 @@ def render_instructor_ui(
           <option value="none">No confidence</option>
           <option value="custom">Custom…</option>
         </select>
-        <span id="conf-custom" class="hidden">
-          <select id="conf-op" onchange="onFilterChange()">
+        <div id="conf-custom" class="hidden" role="group">
+          <select id="conf-op" aria-label="Confidence comparison operator" onchange="onFilterChange()">
             <option value="gte">&ge;</option>
             <option value="lte">&le;</option>
           </select>
-          <input type="number" id="conf-value" min="0" max="100" step="1"
+          <input type="number" id="conf-value" min="0" max="100" step="1" aria-label="Confidence threshold"
                  style="width:70px" oninput="onFilterChange()">
-        </span>
+        </div>
 
-        <label for="override-filter">Overrides:</label>
+        <label for="override-filter">Show Results:</label>
         <select id="override-filter" onchange="onFilterChange()">
           <option value="all">All</option>
           <option value="overridden">Overridden</option>
@@ -408,7 +408,7 @@ def render_instructor_ui(
         return 'high';
     }}
 
-    function matchesConfidence(sub) {{
+    function matchesConfidenceFilter(sub) {{
       const c = sub.ai_confidence, m = filterState.conf;
       if (m === 'all') return true;
       if (m === 'none') return c == null;
@@ -429,12 +429,12 @@ def render_instructor_ui(
       return true;
     }}
 
-    function matchesOverride(sub) {{
+    function matchesOverrideFilter(sub) {{
       if (filterState.override === 'all') return true;
       return (filterState.override === 'overridden') === isOverridden(sub);
     }}
 
-    function matchesFilters(sub) {{ return matchesConfidence(sub) && matchesOverride(sub); }}
+    function matchesFilters(sub) {{ return matchesConfidenceFilter(sub) && matchesOverrideFilter(sub); }}
 
     function syncSubmission(submissionId, updated) {{
       for (const uid of groupOrder) {{
