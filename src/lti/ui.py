@@ -90,6 +90,9 @@ def render_instructor_ui(
 
     .student-header td {{ background: #e8f0fe; font-weight: 600;
                           padding: 10px 8px; border-bottom: 2px solid #c4d8f0; }}
+    .student-header {{ cursor: pointer; user-select: none; }}
+    .student-header .chevron {{ display: inline-block; width: 1em; transition: transform .15s; }}
+    .student-header.collapsed .chevron {{ transform: rotate(-90deg); }}
 
     .results-header {{ display: flex; justify-content: space-between;
                        align-items: center; margin-bottom: 12px; }}
@@ -372,6 +375,7 @@ def render_instructor_ui(
     let headerNodes = {{}};
     let rowNodes = {{}};
     let sortDir = null;
+    const collapsedGroups = new Set();
 
     let filterState = {{ conf: 'all', op: 'gte', value: null, override: 'all' }};
 
@@ -727,6 +731,79 @@ def render_instructor_ui(
             }}
         
 
+    function subUid(sub) {{ 
+        return sub.canvas_user_id || 'unknown'; 
+    }}
+
+    function computeTotals() {{
+        const totals = {{}};
+        currentSubs.forEach(sub => {{
+            const uid = subUid(sub);
+            if (!totals[uid]){{
+                totals[uid] = {{ score: 0, max: 0, failed: 0 }};
+            }}
+            if (sub.effective_grade != null) totals[uid].score += sub.effective_grade;
+            totals[uid].max += sub.points_possible;
+            if (sub.grading_status === 'FAILED' && sub.effective_grade == null) totals[uid].failed++;
+        }});
+    return totals;
+    }}
+
+    function updateGroupHeader(uid, t) {{
+    const td = document.querySelector('tr.student-header[data-uid="' + CSS.escape(uid) + '"] td');
+    if (!td) return;
+    td.textContent = '';
+    const chev = document.createElement('span');
+    chev.className = 'chevron';
+    chev.textContent = '\u25be';
+    td.appendChild(chev);
+    td.appendChild(document.createTextNode(
+        ' Student ' + uid + '  \u2014  ' + t.score.toFixed(1) + ' / ' + t.max.toFixed(1) + ' points' +
+        (t.failed ? '  \u26a0 ' + t.failed + ' failed' : '')));
+    }}
+
+    function updateStats() {{
+    const totals = computeTotals();
+    const uids = Object.keys(totals);
+    const questionPoints = {{}};
+    currentSubs.forEach(s => {{ questionPoints[s.question_id] = s.points_possible; }});
+    const maxPoints = Object.values(questionPoints).reduce((a, b) => a + b, 0);
+
+    let percentSum = 0, counted = 0;
+    uids.forEach(uid => {{
+        const t = totals[uid];
+        if (t.max > 0) {{ percentSum += t.score / t.max * 100; counted++; }}
+    }});
+
+    document.getElementById('stat-students').textContent = uids.length;
+    document.getElementById('stat-questions').textContent = Object.keys(questionPoints).length;
+    document.getElementById('stat-avg').textContent =
+        counted > 0 ? (percentSum / counted).toFixed(1) + '%' : '\u2014';
+    document.getElementById('stat-max').textContent =
+        maxPoints > 0 ? maxPoints.toFixed(1) : '\u2014';
+
+    const graded = currentSubs.filter(s => s.effective_grade != null).length;
+    document.getElementById('results-summary').textContent =
+        graded + ' of ' + currentSubs.length + ' answers graded.';
+
+    uids.forEach(uid => updateGroupHeader(uid, totals[uid]));
+    }}
+
+    function applyUpdate(submissionId, updated) {{
+    const i = currentSubs.findIndex(s => String(s.submission_id) === String(submissionId));
+    if (i !== -1) Object.assign(currentSubs[i], updated);
+    updateStats();
+    }}
+
+    function toggleGroup(uid) {{
+    const nowCollapsed = !collapsedGroups.has(uid);
+    if (nowCollapsed) collapsedGroups.add(uid); else collapsedGroups.delete(uid);
+    const header = document.querySelector('tr.student-header[data-uid="' + CSS.escape(uid) + '"]');
+    header.classList.toggle('collapsed', nowCollapsed);
+    header.setAttribute('aria-expanded', String(!nowCollapsed));
+    document.querySelectorAll('tr.student-row[data-uid="' + CSS.escape(uid) + '"]')
+        .forEach(r => r.classList.toggle('hidden', nowCollapsed));
+    }}
 
     // Fetch all submissions for the current job and render them grouped by
     // student. Computes summary stats (student count, question count, average
@@ -749,6 +826,8 @@ def render_instructor_ui(
 
       if (!subsResp.ok) return;
       const subs = await subsResp.json();
+
+      currentSubs = subs;
       
       currentPrompt = '';
 
@@ -760,7 +839,7 @@ def render_instructor_ui(
       const groups = {{}};
       const order = [];
       subs.forEach(sub => {{
-        const uid = sub.canvas_user_id || 'unknown';
+        const uid = subUid(sub);
         if (!groups[uid]) {{
           groups[uid] = [];
           order.push(uid);
@@ -803,15 +882,15 @@ def render_instructor_ui(
 
       order.forEach(uid => {{
         const studentSubs = groups[uid];
-        let studentScore = 0;
-        let studentMax = 0;
-        studentSubs.forEach(s => {{
-          if (s.effective_grade != null) studentScore += s.effective_grade;
-          studentMax += s.points_possible;
-        }});
-
+        const collapsed = collapsedGroups.has(uid);
         const headerRow = document.createElement('tr');
         headerRow.classList.add('student-header');
+        if (collapsed) headerRow.classList.add('collapsed');
+        headerRow.dataset.uid = uid;
+        headerRow.setAttribute('aria-expanded', String(!collapsed));
+        headerRow.addEventListener('click', () => toggleGroup(uid));
+        const totals = computeTotals();
+        const studentTotals = totals[uid]
         const headerTd = document.createElement('td');
         headerTd.colSpan = 8;
         headerTd.textContent = 'Student ' + uid + '  \u2014  ' +
@@ -822,6 +901,11 @@ def render_instructor_ui(
         studentSubs.forEach(sub => {{
           const tr = document.createElement('tr');
           tr.dataset.submissionId = sub.submission_id;
+          tr.classList.add('student-row');
+          tr.dataset.uid = uid;
+          if (collapsed){{
+            tr.classList.add('hidden');
+          }}
           
           if (sub.grading_status === 'FAILED') {{
             tr.classList.add('row-failed');
@@ -931,9 +1015,7 @@ def render_instructor_ui(
       const retryBtn = document.getElementById('btn-retry-failed');
       retryBtn.style.display = currentJobStatus === 'COMPLETED_WITH_ERRORS' ? 'inline-block' : 'none';
 
-      const graded = subs.filter(s => s.effective_grade != null).length;
-      document.getElementById('results-summary').textContent =
-        graded + ' of ' + subs.length + ' answers graded.';
+      updateStats();
       document.getElementById('section-results').classList.remove('hidden');
     }}
 
@@ -1249,6 +1331,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             gradeCell.textContent = updated.effective_grade != null ? updated.effective_grade : '\u2014';
 
             document.getElementById('feedback-cell-' + submissionId).textContent =
+            stripHtml(updated.effective_feedback) || '\u2014';
             stripHtml(updated.effective_feedback) || '\u2014';
 
             document.getElementById('input-grade-' + submissionId).value = '';
