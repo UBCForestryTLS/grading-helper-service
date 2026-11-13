@@ -1,8 +1,9 @@
 """Tests for Pydantic data models."""
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from src.models.canvas import (
     CanvasAnswer,
@@ -12,6 +13,22 @@ from src.models.canvas import (
 )
 from src.models.grading_job import GradingJob, GradingJobCreate, JobStatus
 from src.models.submission import Submission
+
+
+def _make_submission(job_id=None, **kwargs):
+    defaults = dict(
+        job_id=job_id or uuid4(),
+        question_id=101,
+        question_name="Q1",
+        question_type="short_answer_question",
+        question_text="What is photosynthesis?",
+        points_possible=5.0,
+        student_answer="Plants use sunlight to make food",
+        canvas_points=5.0,
+        correct_answers=["The process by which plants convert light to energy"],
+    )
+    defaults.update(kwargs)
+    return Submission(**defaults)
 
 
 class TestCanvasModels:
@@ -146,3 +163,51 @@ class TestSubmissionModel:
         assert sub.ai_grade == 4.5
         assert sub.ai_feedback == "Good answer"
         assert sub.ai_graded_at == now
+
+    def test_ai_confidence_defaults_to_none(self):
+        assert _make_submission().ai_confidence is None
+
+    def test_ai_confidence_zero_is_preserved(self):
+        sub = _make_submission(ai_confidence=0)
+
+        assert sub.ai_confidence == 0
+        assert sub.model_dump(mode="json")["ai_confidence"] == 0
+
+    def test_override_and_confidence_fields_serialize_as_explicit_null(self):
+        dumped = _make_submission().model_dump(mode="json")
+
+        for key in ("ai_confidence", "instructor_grade", "instructor_feedback"):
+            assert key in dumped
+            assert dumped[key] is None
+
+    def test_ai_confidence_nonzero_is_preserved(self):
+        sub = _make_submission(ai_confidence=85)
+
+        assert sub.ai_confidence == 85
+        assert sub.model_dump(mode="json")["ai_confidence"] == 85
+
+    @pytest.mark.parametrize("confidence", [0, 1, 50, 85, 99, 100])
+    def test_ai_confidence_accepts_valid_integers(self, confidence):
+        sub = _make_submission(ai_confidence=confidence)
+
+        assert sub.ai_confidence == confidence
+
+    @pytest.mark.parametrize(
+        "confidence",
+        [-1, 101, 85.5, 85.0, "85", True, False],
+    )
+    def test_ai_confidence_rejects_invalid_values(self, confidence):
+        with pytest.raises(ValidationError):
+            _make_submission(ai_confidence=confidence)
+
+    def test_ai_confidence_accepts_none(self):
+        sub = _make_submission(ai_confidence=None)
+
+        assert sub.ai_confidence is None
+
+    def test_ai_confidence_rejects_invalid_db_data(self):
+        data = _make_submission().model_dump()
+        data["ai_confidence"] = 150
+
+        with pytest.raises(ValidationError):
+            Submission.model_validate(data)

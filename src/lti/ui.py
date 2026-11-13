@@ -116,7 +116,7 @@ def render_instructor_ui(
     tr.row-failed td {{ border-bottom-color: #f5c6cb; }}
     #results-table td:nth-child(2),
     #results-table td:nth-child(3),
-    #results-table td:nth-child(7) {{
+    #results-table td:nth-child(8) {{
       max-width: 250px; word-break: break-word;
     }}
     #history-table tbody tr:hover {{ background: #f8f8f8; }}
@@ -157,6 +157,15 @@ def render_instructor_ui(
         font-size: 0.8em;
         color: #666;
     }}
+    .conf-badge {{ display: inline-block; padding: 2px 8px; border-radius: 12px;
+                font-size: 0.85em; font-weight: 600; white-space: nowrap; }}
+    .conf-low {{ background: #f8d7da; color: #721c24; }}
+    .conf-medium {{ background: #ffe5cc; color: #8a4b00; }}
+    .conf-high {{ background: #d4edda; color: #155724; }}
+    .view-controls {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px;font-size: 0.9em; }}
+    .view-controls select {{ width: auto; margin-bottom: 0; }}
+    .student-tag {{ display: none; font-size: 0.8em; color: #666; margin-top: 2px; }}
+    #results-table.flat-view .student-tag {{ display: block; }}
   </style>
 </head>
 <body>
@@ -267,12 +276,49 @@ def render_instructor_ui(
       </div>
       <div id="results-summary" class="status"></div>
       <br>
+      <div class="view-controls">
+        <label for="sort-select">Sort by:</label>
+        <select id="sort-select" onchange="sortConfidence(this.value)">
+          <option value="">Student</option>
+          <option value="asc">AI confidence: lowest first</option>
+          <option value="desc">AI confidence: highest first</option>
+        </select>
+
+        <label for="conf-filter">Confidence:</label>
+        <select id="conf-filter" onchange="onFilterChange()">
+          <option value="all">All</option>
+          <option value="low">Low (0–50)</option>
+          <option value="medium">Medium (51–79)</option>
+          <option value="high">High (80–100)</option>
+          <option value="none">No confidence</option>
+          <option value="custom">Custom…</option>
+        </select>
+        <div id="conf-custom" class="hidden" role="group">
+          <select id="conf-op" aria-label="Confidence comparison operator" onchange="onFilterChange()">
+            <option value="gte">&ge;</option>
+            <option value="lte">&le;</option>
+          </select>
+          <input type="number" id="conf-value" min="0" max="100" step="1" aria-label="Confidence threshold"
+                 style="width:70px" oninput="onFilterChange()">
+        </div>
+
+        <label for="override-filter">Show Results:</label>
+        <select id="override-filter" onchange="onFilterChange()">
+          <option value="all">All</option>
+          <option value="overridden">Overridden</option>
+          <option value="not_overridden">Not overridden</option>
+        </select>
+
+        <button class="btn-link" onclick="clearFilters()">Clear filters</button>
+        <span id="view-count" class="status"></span>
+      </div>
       <table id="results-table">
         <thead>
           <tr>
             <th>Question</th>
             <th>Question Text</th>
             <th>Student Answer</th>
+            <th>AI Confidence</th>
             <th>Grade</th>
             <th>Max</th>
             <th>Feedback</th>
@@ -321,6 +367,81 @@ def render_instructor_ui(
     let cameFromHistory = false;
     let defaultPrompt = '';
     let currentPrompt = '';
+    let currentGroups = {{}};
+    let groupOrder = [];
+    let headerNodes = {{}};
+    let rowNodes = {{}};
+    let sortDir = null;
+
+    let filterState = {{ conf: 'all', op: 'gte', value: null, override: 'all' }};
+
+    function readFilters() {{
+      const raw = document.getElementById('conf-value').value;
+      const num = raw === '' ? null : Number(raw);   // Number('') is 0, so guard it
+      filterState.conf = document.getElementById('conf-filter').value;
+      filterState.op = document.getElementById('conf-op').value;
+      filterState.value = (num === null || isNaN(num)) ? null : num;
+      filterState.override = document.getElementById('override-filter').value;
+      document.getElementById('conf-custom')
+        .classList.toggle('hidden', filterState.conf !== 'custom');
+    }}
+
+    function onFilterChange() {{ readFilters(); applyView(); }}
+
+    function clearFilters() {{
+      document.getElementById('conf-filter').value = 'all';
+      document.getElementById('conf-op').value = 'gte';
+      document.getElementById('conf-value').value = '';
+      document.getElementById('override-filter').value = 'all';
+      onFilterChange();
+    }}
+
+    function isOverridden(sub) {{
+      return sub.instructor_grade != null ||
+        (sub.instructor_feedback != null && sub.instructor_feedback !== '');
+    }}
+
+    function confidenceBand(c) {{
+        if (c == null) return null;
+        if (c <= 50) return 'low';
+        if (c <= 79) return 'medium';
+        return 'high';
+    }}
+
+    function matchesConfidenceFilter(sub) {{
+      const c = sub.ai_confidence, m = filterState.conf;
+      if (m === 'all') return true;
+      if (m === 'none') return c == null;
+      if (c == null) return false;
+      if (m === 'low' || m === 'medium' || m === 'high') return confidenceBand(c) === m;
+
+      if (m === 'custom') {{
+        if (filterState.value == null) {{
+            return true;
+        }}
+
+        if (filterState.op === 'gte') {{
+            return c >= filterState.value;
+        }}
+
+        return c <= filterState.value;
+      }}
+      return true;
+    }}
+
+    function matchesOverrideFilter(sub) {{
+      if (filterState.override === 'all') return true;
+      return (filterState.override === 'overridden') === isOverridden(sub);
+    }}
+
+    function matchesFilters(sub) {{ return matchesConfidenceFilter(sub) && matchesOverrideFilter(sub); }}
+
+    function syncSubmission(submissionId, updated) {{
+      for (const uid of groupOrder) {{
+        const sub = currentGroups[uid].find(s => s.submission_id === submissionId);
+        if (sub) {{ Object.assign(sub, updated); return; }}
+      }}
+    }}
 
     function authHeaders() {{
       return {{
@@ -647,6 +768,8 @@ def render_instructor_ui(
         groups[uid].push(sub);
       }});
 
+      currentGroups = groups;
+      groupOrder = order;
       const totalStudents = order.length;
       const questionPoints = {{}};
       subs.forEach(s => {{ questionPoints[s.question_id] = s.points_possible; }});
@@ -675,8 +798,8 @@ def render_instructor_ui(
       document.getElementById('stat-max').textContent = maxPoints > 0
         ? maxPoints.toFixed(1) : '\u2014';
 
-      const tbody = document.getElementById('results-tbody');
-      tbody.innerHTML = '';
+      headerNodes = {{}};
+      rowNodes = {{}};
 
       order.forEach(uid => {{
         const studentSubs = groups[uid];
@@ -690,11 +813,11 @@ def render_instructor_ui(
         const headerRow = document.createElement('tr');
         headerRow.classList.add('student-header');
         const headerTd = document.createElement('td');
-        headerTd.colSpan = 7;
+        headerTd.colSpan = 8;
         headerTd.textContent = 'Student ' + uid + '  \u2014  ' +
           studentScore.toFixed(1) + ' / ' + studentMax.toFixed(1) + ' points';
         headerRow.appendChild(headerTd);
-        tbody.appendChild(headerRow);
+        headerNodes[uid] = headerRow;
 
         studentSubs.forEach(sub => {{
           const tr = document.createElement('tr');
@@ -707,6 +830,11 @@ def render_instructor_ui(
           tdQ.textContent = stripHtml(sub.question_name) || ('Q' + sub.question_id);
           tr.appendChild(tdQ);
 
+          const tag = document.createElement('div');
+          tag.className = 'student-tag';
+          tag.textContent = 'Student ' + uid;
+          tdQ.appendChild(tag);
+
           const tdQT = document.createElement('td');
           tdQT.textContent = stripHtml(sub.question_text) || '\u2014';
           tr.appendChild(tdQT);
@@ -714,7 +842,20 @@ def render_instructor_ui(
           const tdA = document.createElement('td');
           tdA.textContent = stripHtml(sub.student_answer);
           tr.appendChild(tdA);
-
+        
+          const tdC = document.createElement('td');
+          tdC.id = 'confidence-cell-' + sub.submission_id;
+                    const band = confidenceBand(sub.ai_confidence);
+          if (band) {{
+            const b = document.createElement('span');
+            b.className = 'conf-badge conf-' + band;
+            b.textContent = band.charAt(0).toUpperCase() + band.slice(1) + ' (' + sub.ai_confidence + ')';
+            tdC.appendChild(b);
+          }} else {{
+            tdC.textContent = '\u2014';
+          }}
+          tr.appendChild(tdC);
+          
           const tdG = document.createElement('td');
           tdG.id = 'grade-cell-' + sub.submission_id;
           
@@ -767,7 +908,7 @@ def render_instructor_ui(
                  placeholder="Grade" min="0" max="${{sub.points_possible}}"
                  step="0.5" value="${{sub.instructor_grade != null ? sub.instructor_grade : ''}}">
           <textarea id="input-feedback-${{sub.submission_id}}"
-                    placeholder="Feedback" rows="2">${{sub.instructor_feedback != null ? sub.instructor_feedback : ''}}</textarea>
+                    placeholder="Feedback" rows="2"></textarea>
           <div class="btn-row">
           <button class="btn-save" onclick="saveOverride('${{currentJobId}}', '${{sub.submission_id}}', ${{sub.points_possible}})">Save</button>
           ${{isOverridden && sub.grading_status !== 'FAILED' ? `<button class="btn-revert" onclick="revertOverride('${{currentJobId}}', '${{sub.submission_id}}')">Revert</button>` : ''}}
@@ -776,10 +917,16 @@ def render_instructor_ui(
         ${{isOverridden ? `<div class="override-info" style="font-size:0.8rem; color:#666; margin-top:4px;">Last override by user ${{sub.overridden_by || 'unknown'}}</div>` : ''}}
         </div>
         `;
+        tdO.querySelector('textarea').value = sub.instructor_feedback ?? '';
+
         tr.appendChild(tdO);
-        tbody.appendChild(tr);
+        rowNodes[sub.submission_id] = tr;
         }});
       }});
+
+      sortDir = null;
+      document.getElementById('sort-select').value = '';
+      clearFilters(); 
 
       const retryBtn = document.getElementById('btn-retry-failed');
       retryBtn.style.display = currentJobStatus === 'COMPLETED_WITH_ERRORS' ? 'inline-block' : 'none';
@@ -1018,6 +1165,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             }}
 
             const updated = await resp.json();
+            syncSubmission(submissionId, updated);
             msgEl.textContent = 'Saved.';
             msgEl.style.color = '#006600';
 
@@ -1063,6 +1211,8 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             msgEl.textContent = 'Could not connect. Please try again.';
             msgEl.style.color = '#cc0000';
         }}
+        
+        applyView()
     }}
 
     async function revertOverride(jobId, submissionId, pointsPossible){{
@@ -1087,6 +1237,11 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             }}
 
             const updated = await resp.json();
+            updated.instructor_grade = null;
+            updated.instructor_feedback = null;
+            updated.overridden_by = null;
+            updated.overridden_at = null;
+            syncSubmission(submissionId, updated);
             msgEl.textContent = 'Reverted to AI grade.';
             msgEl.style.color = '#006600';
             
@@ -1094,7 +1249,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             gradeCell.textContent = updated.effective_grade != null ? updated.effective_grade : '\u2014';
 
             document.getElementById('feedback-cell-' + submissionId).textContent =
-            stripHtml(updated.effective_feedback != null && updated.effective_feedback !== '') || '\u2014';
+            stripHtml(updated.effective_feedback) || '\u2014';
 
             document.getElementById('input-grade-' + submissionId).value = '';
             document.getElementById('input-feedback-' + submissionId).value = '';
@@ -1110,7 +1265,62 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             msgEl.textContent = 'Could not connect. Please try again.';
             msgEl.style.color = '#cc0000';
         }}
+
+        applyView()
     }}
+
+    function applyView() {{
+        const tbody = document.getElementById('results-tbody');
+        const table = document.getElementById('results-table');
+        tbody.innerHTML = '';
+
+        const flat = sortDir !== null;
+        table.classList.toggle('flat-view', flat);
+        let shown = 0, total = 0;
+
+        if (!flat) {{
+            groupOrder.forEach(uid => {{
+                total += currentGroups[uid].length;
+                const matches = currentGroups[uid].filter(matchesFilters);
+                if (matches.length === 0) return;      // hide students with no matches
+                tbody.appendChild(headerNodes[uid]);
+                matches.forEach(sub => tbody.appendChild(rowNodes[sub.submission_id]));
+                shown += matches.length;
+            }});
+        }} else {{
+            const all = [];
+            groupOrder.forEach(uid => currentGroups[uid].forEach(sub => {{
+                total++;
+                if (matchesFilters(sub)) all.push(sub);
+            }}));
+            all.sort((a, b) => {{
+                const ca = a.ai_confidence, cb = b.ai_confidence;
+                if (ca == null && cb == null) return 0;
+                if (ca == null) return 1;
+                if (cb == null) return -1;
+                return sortDir === 'asc' ? ca - cb : cb - ca;
+            }});
+            all.forEach(sub => tbody.appendChild(rowNodes[sub.submission_id]));
+            shown = all.length;
+        }}
+
+        if (shown === 0 && total > 0) {{
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 8;
+            td.textContent = 'No answers match the current filters.';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }}
+        document.getElementById('view-count').textContent =
+            'Showing ' + shown + ' of ' + total + ' answers';
+    }}
+
+    async function sortConfidence(value){{
+        sortDir = value || null;
+        applyView();
+    }}
+
   </script>
 </body>
 </html>"""

@@ -1,6 +1,16 @@
 """Tests for the instructor UI renderer."""
 
 from src.lti.ui import render_instructor_ui
+import pytest
+
+
+def _render() -> str:
+    return render_instructor_ui(
+        launch_id="l1",
+        session_token="tok",
+        base_url="https://api.example.com",
+        roles=["Instructor"],
+    )
 
 
 class TestRenderInstructorUI:
@@ -93,3 +103,70 @@ class TestRenderInstructorUI:
             base_url="https://api.example.com",
         )
         assert html is not None
+
+
+class TestConfidenceUI:
+    @pytest.mark.parametrize(
+        "cls", [".conf-badge", ".conf-low", ".conf-medium", ".conf-high"]
+    )
+    def test_confidence_badge_styles_present(self, cls):
+        assert cls in _render()
+
+    def test_confidence_column_header(self):
+        assert "<th>AI Confidence</th>" in _render()
+
+    def test_student_header_spans_all_eight_columns(self):
+        assert "headerTd.colSpan = 8" in _render()
+
+    @pytest.mark.parametrize(
+        "element_id",
+        [
+            "sort-select",
+            "conf-filter",
+            "conf-custom",
+            "conf-op",
+            "conf-value",
+            "override-filter",
+            "view-count",
+        ],
+    )
+    def test_controls_present(self, element_id):
+        assert f'id="{element_id}"' in _render()
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "function applyView",
+            "function matchesFilters",
+            "function matchesConfidence",
+            "function matchesOverride",
+            "function isOverridden",
+            "function clearFilters",
+            "function syncSubmission",
+            "function confidenceBand",
+        ],
+    )
+    def test_functions_present(self, name):
+        assert name in _render()
+
+    def test_f_string_braces_render_as_single_braces(self):
+        assert "let filterState = { conf: 'all'" in _render()
+
+    def test_band_boundaries(self):
+        html = _render()
+        assert "c <= 50" in html
+        assert "c <= 79" in html
+
+    def test_filter_uses_confidence_band(self):
+        assert "confidenceBand(c) === m" in _render()
+
+    def test_empty_custom_input_is_null_not_zero(self):
+        assert "raw === '' ? null" in _render()
+
+    def test_view_controls_wrap(self):
+        assert "flex-wrap: wrap" in _render()
+
+    def test_override_column_css_targets_column_8(self):
+        html = _render()
+        assert "td:nth-child(8)" in html
+        assert "td:nth-child(7)" not in html

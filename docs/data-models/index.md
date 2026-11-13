@@ -45,6 +45,7 @@ erDiagram
         int attempt
         string ai_grade
         string ai_feedback
+        int ai_confidence
         string ai_graded_at
         string instructor_grade
         string instructor_feedback
@@ -154,7 +155,7 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 | `quiz_id` | `str` | Canvas quiz ID |
 | `assignment_id` | `str` | Canvas assignment ID (used for AGS lineitem matching) |
 | `job_name` | `str` | Human-readable name |
-| `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, `COMPLETED_WITH_ERRORS`, or `FAILED` |
+| `status` | `JobStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, `CANCELLED`, `COMPLETED_WITH_ERRORS`, or `FAILED` |
 | `total_questions` | `int` | Number of questions in the quiz |
 | `total_submissions` | `int` | Number of student submissions |
 | `created_at` | `datetime` | UTC timestamp |
@@ -167,7 +168,7 @@ Represents a batch grading run for a quiz. Defined in `src/models/grading_job.py
 
 ### JobStatus
 
-`StrEnum` with five values:
+`StrEnum` with six values:
 
 - `PENDING` — job created, waiting to be graded
 - `PROCESSING` — Bedrock calls in progress
@@ -207,15 +208,16 @@ One student answer to one question. Defined in `src/models/submission.py`.
 | `canvas_user_id` | `str` | Canvas user ID (for grade passback) |
 | `quiz_submission_id` | `int` | Canvas quiz submission ID (used for REST-based grade passback; 0 if not set) |
 | `attempt` | `int` | Quiz submission attempt number (default 1) |
-| `ai_grade` | `float | None` | AI-assigned grade (clamped to 0..points_possible) |
-| `ai_feedback` | `str | None` | AI-generated feedback text |
-| `ai_graded_at` | `datetime | None` | When the AI grading was performed |
-| `instructor_grade` | `float | None` | Grade set by instructor override, replaces AI grade when present |
-| `instructor_feedback` | `str | None` | feedback set by instructor override. replaces AI feedback when present |
-| `effective_grade` | `float | None` | Returns instructor grade if set, otherwise AI grade|
-| `effective_feedback` | `str | None` | Returns instructor feedback if set, otherwise AI feedback |
-| `overridden_by` | `str | None` | Canvas user ID of the instructor/TA who performed the override |
-| `overridden_at` | `datetime | None` | When the Instructor override was done |
+| `ai_grade` | `float \| None` | AI-assigned grade (clamped to 0..points_possible) |
+| `ai_feedback` | `str \| None` | AI-generated feedback text |
+| `ai_confidence` | `int \| None` | AI-generated confidence score (0-100), or None if unavailable |
+| `ai_graded_at` | `datetime \| None` | When the AI grading was performed |
+| `instructor_grade` | `float \| None` | Grade set by instructor override, replaces AI grade when present |
+| `instructor_feedback` | `str \| None` | feedback set by instructor override. replaces AI feedback when present |
+| `effective_grade` | `float \| None` | Returns instructor grade if set, otherwise AI grade|
+| `effective_feedback` | `str \| None` | Returns instructor feedback if set, otherwise AI feedback |
+| `overridden_by` | `str \| None` | Canvas user ID of the instructor/TA who performed the override |
+| `overridden_at` | `datetime \| None` | When the Instructor override was done |
 | `grading_status` | `GradingStatus` | Current grading state: `PENDING`, `GRADED`, or `FAILED` |
 | `grading_error` | `str \| None` | Error message when submission grading fails |
 

@@ -379,6 +379,56 @@ class TestListSubmissions:
         )
         assert response.status_code == 403
 
+    def test_list_submissions_includes_ai_confidence(
+        self,
+        client,
+        session_token,
+        sample_canvas_data,
+        dynamodb_table,
+        instructor_launch,
+    ):
+        from datetime import datetime, timezone
+        from uuid import UUID
+
+        from src.repositories.submission import SubmissionRepository
+
+        auth = {"Authorization": f"Bearer {session_token}"}
+
+        create_resp = client.post(
+            "/jobs",
+            json={
+                "course_id": "C100",
+                "quiz_id": "Q50",
+                "job_name": "Test Job",
+                "canvas_data": sample_canvas_data,
+            },
+            headers=auth,
+        )
+        job_id = create_resp.json()["job_id"]
+
+        subs = client.get(f"/jobs/{job_id}/submissions", headers=auth).json()
+        submission_id = subs[0]["submission_id"]
+
+        repo = SubmissionRepository(table=dynamodb_table)
+        repo.update_ai_grade(
+            job_id=UUID(job_id),
+            submission_id=UUID(submission_id),
+            ai_grade=4.0,
+            ai_feedback="Good answer",
+            ai_graded_at=datetime.now(timezone.utc),
+            ai_confidence=85,
+        )
+
+        response = client.get(f"/jobs/{job_id}/submissions", headers=auth)
+
+        assert response.status_code == 200
+        returned_subs = response.json()
+
+        updated_sub = next(
+            sub for sub in returned_subs if sub["submission_id"] == submission_id
+        )
+        assert updated_sub["ai_confidence"] == 85
+
 
 class TestCancelJob:
     def test_cancel_job_success(
