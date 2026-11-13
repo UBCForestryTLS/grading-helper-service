@@ -3,6 +3,7 @@
 from uuid import UUID, uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from src.models.canvas import (
     CanvasAnswer,
@@ -184,3 +185,29 @@ class TestSubmissionModel:
 
         assert sub.ai_confidence == 85
         assert sub.model_dump(mode="json")["ai_confidence"] == 85
+
+    @pytest.mark.parametrize("confidence", [0, 1, 50, 85, 99, 100])
+    def test_ai_confidence_accepts_valid_integers(self, confidence):
+        sub = _make_submission(ai_confidence=confidence)
+
+        assert sub.ai_confidence == confidence
+
+    @pytest.mark.parametrize(
+        "confidence",
+        [-1, 101, 85.5, 85.0, "85", True, False],
+    )
+    def test_ai_confidence_rejects_invalid_values(self, confidence):
+        with pytest.raises(ValidationError):
+            _make_submission(ai_confidence=confidence)
+
+    def test_ai_confidence_accepts_none(self):
+        sub = _make_submission(ai_confidence=None)
+
+        assert sub.ai_confidence is None
+
+    def test_ai_confidence_rejects_invalid_db_data(self):
+        data = _make_submission().model_dump()
+        data["ai_confidence"] = 150
+
+        with pytest.raises(ValidationError):
+            Submission.model_validate(data)
