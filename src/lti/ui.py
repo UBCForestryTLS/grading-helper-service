@@ -865,6 +865,7 @@ def render_instructor_ui(
 
       order.forEach(uid => {{
         const studentSubs = groups[uid];
+<<<<<<< HEAD
         const headerRow = document.createElement('tr');
         headerRow.classList.add('student-header');
         headerRow.dataset.uid = uid;
@@ -874,6 +875,16 @@ def render_instructor_ui(
         headerRow.addEventListener('keydown', e => {{
         if (e.key === 'Enter' || e.key === ' ') {{ e.preventDefault(); toggleGroup(uid); }}
         }});
+=======
+        const collapsed = collapsedGroups.has(uid);
+        const headerRow = document.createElement('tr');
+        headerRow.classList.add('student-header');
+        if (collapsed) headerRow.classList.add('collapsed');
+        headerRow.dataset.uid = uid;
+        headerRow.setAttribute('aria-expanded', String(!collapsed));
+        headerRow.addEventListener('click', () => toggleGroup(uid));
+        const totals = computeTotals();
+>>>>>>> a75874ce8d96896b131b8adb1fc8ca0f28906ae2
         const studentTotals = totals[uid]
         const headerTd = document.createElement('td');
         headerTd.colSpan = 5;
@@ -886,6 +897,12 @@ def render_instructor_ui(
           tr.dataset.submissionId = sub.submission_id;
           tr.classList.add('student-row');
           tr.dataset.uid = uid;
+<<<<<<< HEAD
+=======
+          if (collapsed){{
+            tr.classList.add('hidden');
+          }}
+>>>>>>> a75874ce8d96896b131b8adb1fc8ca0f28906ae2
           
           if (sub.grading_status === 'FAILED') {{
             tr.classList.add('row-failed');
@@ -1299,6 +1316,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             gradeCell.textContent = updated.effective_grade != null ? updated.effective_grade : '\u2014';
 
             document.getElementById('feedback-cell-' + submissionId).textContent =
+            stripHtml(updated.effective_feedback) || '\u2014';
             stripHtml(updated.effective_feedback) || '\u2014';
 
             document.getElementById('input-grade-' + submissionId).value = '';
