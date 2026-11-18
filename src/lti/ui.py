@@ -122,9 +122,10 @@ def render_instructor_ui(
     .qa-question {{ font-style: italic; color: #444; }}
     .qa-divider {{ border: 0; border-top: 1px solid #333; margin: 12px 0; }}
     .qa-label {{ font-weight: 700; margin-bottom: 4px; }}
-    .cg-cell {{ white-space: nowrap; vertical-align: top; text-align: center; }}
-    .grade-line {{ margin-top: 8px; font-weight: 600; }}
-    #results-table th:nth-child(2) {{ text-align: center; }}
+    .cg-cell {{ white-space: nowrap; vertical-align: middle; text-align: center; }}
+    .conf-line {{ margin-bottom: 8px; }}
+    .grade-line {{ font-weight: 600; }}
+    #results-table th:nth-child(2) {{text-align: center;}}
     #results-table td:nth-child(4) {{ max-width: 250px; word-break: break-word; }}
     #history-table tbody tr:hover {{ background: #f8f8f8; }}
     .prompt-section {{
@@ -865,7 +866,6 @@ def render_instructor_ui(
 
       order.forEach(uid => {{
         const studentSubs = groups[uid];
-<<<<<<< HEAD
         const headerRow = document.createElement('tr');
         headerRow.classList.add('student-header');
         headerRow.dataset.uid = uid;
@@ -875,16 +875,6 @@ def render_instructor_ui(
         headerRow.addEventListener('keydown', e => {{
         if (e.key === 'Enter' || e.key === ' ') {{ e.preventDefault(); toggleGroup(uid); }}
         }});
-=======
-        const collapsed = collapsedGroups.has(uid);
-        const headerRow = document.createElement('tr');
-        headerRow.classList.add('student-header');
-        if (collapsed) headerRow.classList.add('collapsed');
-        headerRow.dataset.uid = uid;
-        headerRow.setAttribute('aria-expanded', String(!collapsed));
-        headerRow.addEventListener('click', () => toggleGroup(uid));
-        const totals = computeTotals();
->>>>>>> a75874ce8d96896b131b8adb1fc8ca0f28906ae2
         const studentTotals = totals[uid]
         const headerTd = document.createElement('td');
         headerTd.colSpan = 5;
@@ -897,12 +887,6 @@ def render_instructor_ui(
           tr.dataset.submissionId = sub.submission_id;
           tr.classList.add('student-row');
           tr.dataset.uid = uid;
-<<<<<<< HEAD
-=======
-          if (collapsed){{
-            tr.classList.add('hidden');
-          }}
->>>>>>> a75874ce8d96896b131b8adb1fc8ca0f28906ae2
           
           if (sub.grading_status === 'FAILED') {{
             tr.classList.add('row-failed');
@@ -918,8 +902,11 @@ def render_instructor_ui(
         tr.appendChild(tdQA);
 
         const tdCG = createEl('td', 'cg-cell');
-        const confDiv = createEl('div');
+        
+        const hasGradeOverride = sub.instructor_grade != null;
+        const confDiv = createEl('div', 'conf-line');
         confDiv.id = 'confidence-cell-' + sub.submission_id;
+        confDiv.classList.toggle('hidden', hasGradeOverride);
         const band = confidenceBand(sub.ai_confidence);
         if (band) {{
         confDiv.appendChild(createEl('span', 'conf-badge conf-' + band,
@@ -931,7 +918,6 @@ def render_instructor_ui(
         const tdG = createEl('div', 'grade-line');
         tdG.id = 'grade-cell-' + sub.submission_id;
 
-        const hasGradeOverride = sub.instructor_grade != null;
         const hasFeedbackOverride = sub.instructor_feedback != null && sub.instructor_feedback !== '';
         const isOverridden = hasGradeOverride || hasFeedbackOverride;
         tdG.textContent = sub.effective_grade != null ? sub.effective_grade : '\u2014';
@@ -1243,6 +1229,8 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             badge.textContent = 'edited';
             gradeCell.appendChild(badge);
             }}
+            document.getElementById('confidence-cell-' + submissionId)
+            .classList.toggle('hidden', updated.instructor_grade != null);
     
             const feedbackCell = document.getElementById('feedback-cell-' + submissionId);
             feedbackCell.textContent = stripHtml(updated.effective_feedback) || '\u2014';
@@ -1314,9 +1302,9 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             
             const gradeCell = document.getElementById('grade-cell-' + submissionId);
             gradeCell.textContent = updated.effective_grade != null ? updated.effective_grade : '\u2014';
-
+            
+            document.getElementById('confidence-cell-' + submissionId).classList.remove('hidden');
             document.getElementById('feedback-cell-' + submissionId).textContent =
-            stripHtml(updated.effective_feedback) || '\u2014';
             stripHtml(updated.effective_feedback) || '\u2014';
 
             document.getElementById('input-grade-' + submissionId).value = '';
