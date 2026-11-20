@@ -48,6 +48,16 @@ def render_instructor_ui(
     table {{ width: 100%; border-collapse: collapse; font-size: 0.9em; }}
     th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #eee; }}
     th {{ background: #f0f0f0; font-weight: 600; }}
+    .results-table-container {{width: 100%; overflow-x: auto;}}
+    #results-table {{table-layout: fixed; width: 1200px; min-width: 100%; }}
+    #results-table th {{position: relative; }}
+    #results-table td {{overflow-wrap: anywhere; }}
+    #results-table th,
+    #results-table td {{ border-right: 1px solid #cbd5e1;}}
+    #results-table .column-resizer {{position: absolute; top: 0; right: -5px; width: 10px; height: 100%; cursor: col-resize; user-select: none; touch-action: none; z-index: 5; }}
+    #results-table .column-resizer::after {{ content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); background: transparent;}}
+    #results-table .column-resizer:hover::after,
+    #results-table .column-resizer.dragging::after {{background: #0066cc;}}
     .badge {{ display: inline-block; padding: 2px 8px; border-radius: 12px;
               font-size: 0.8em; font-weight: 600; }}
     .badge-pending {{ background: #fff3cd; color: #856404; }}
@@ -90,6 +100,9 @@ def render_instructor_ui(
 
     .student-header td {{ background: #e8f0fe; font-weight: 600;
                           padding: 10px 8px; border-bottom: 2px solid #c4d8f0; }}
+    .student-header {{ cursor: pointer; user-select: none; }}
+    .student-header .chevron {{ display: inline-block; width: 1em; transition: transform .15s; }}
+    .student-header.collapsed .chevron {{ transform: rotate(-90deg); }}
 
     .results-header {{ display: flex; justify-content: space-between;
                        align-items: center; margin-bottom: 12px; }}
@@ -114,11 +127,16 @@ def render_instructor_ui(
     .btn-revert:hover {{ background: #990000; }}
     tr.row-failed {{ background: #fff5f5; }}
     tr.row-failed td {{ border-bottom-color: #f5c6cb; }}
-    #results-table td:nth-child(2),
-    #results-table td:nth-child(3),
-    #results-table td:nth-child(8) {{
-      max-width: 250px; word-break: break-word;
-    }}
+    .qa-cell {{ word-break: break-word; vertical-align: top; }}
+    .qa-name {{ font-weight: 700; margin-bottom: 4px; }}
+    .qa-question {{ font-style: italic; color: #444; }}
+    .qa-divider {{ border: 0; border-top: 1px solid #333; margin: 12px 0; }}
+    .qa-label {{ font-weight: 700; margin-bottom: 4px; }}
+    .cg-cell {{ white-space: nowrap; vertical-align: middle; text-align: center; }}
+    .conf-line {{ margin-bottom: 8px; }}
+    .grade-line {{ font-weight: 600; }}
+    #results-table th:nth-child(2) {{text-align: center;}}
+    #results-table td:nth-child(4) {{ word-break: break-word; }}
     #history-table tbody tr:hover {{ background: #f8f8f8; }}
     .prompt-section {{
         margin: 16px 0;
@@ -164,7 +182,7 @@ def render_instructor_ui(
     .conf-high {{ background: #d4edda; color: #155724; }}
     .view-controls {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px;font-size: 0.9em; }}
     .view-controls select {{ width: auto; margin-bottom: 0; }}
-    .student-tag {{ display: none; font-size: 0.8em; color: #666; margin-top: 2px; }}
+    .student-tag {{ display: none; font-size: 0.8em; color: #666; margin-bottom: 6px; }}
     #results-table.flat-view .student-tag {{ display: block; }}
   </style>
 </head>
@@ -312,21 +330,27 @@ def render_instructor_ui(
         <button class="btn-link" onclick="clearFilters()">Clear filters</button>
         <span id="view-count" class="status"></span>
       </div>
-      <table id="results-table">
-        <thead>
-          <tr>
-            <th>Question</th>
-            <th>Question Text</th>
-            <th>Student Answer</th>
-            <th>AI Confidence</th>
-            <th>Grade</th>
-            <th>Max</th>
-            <th>Feedback</th>
-            <th>Override</th>
-          </tr>
-        </thead>
-        <tbody id="results-tbody"></tbody>
-      </table>
+      <div class="results-table-container">
+        <table id="results-table">
+            <colgroup id="results-colgroup">
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            </colgroup>
+            <thead>
+            <tr>
+                <th>Question / Student Answer</th>
+                <th>AI Confidence / Grade</th>
+                <th>Max</th>
+                <th>Feedback</th>
+                <th>Override</th>
+            </tr>
+            </thead>
+            <tbody id="results-tbody"></tbody>
+        </table>
+        </div>
       <br>
       <button id="btn-passback" onclick="pushGrades()">Push Grades to Canvas</button>
       <button id="btn-retry-failed" style="display:none;" onclick="retryFailed()">Retry Failed Submissions</button>
@@ -358,7 +382,7 @@ def render_instructor_ui(
     const SESSION_TOKEN = document.querySelector('meta[name="session-token"]').getAttribute('content');
     const BASE_URL = '{safe_base_url}';
     const LAUNCH_ID = '{safe_launch_id}';
-    const USER_ROLES = {list(roles)};
+    const USER_ROLES = {list(roles)};    
     const ALLOWED_ROLES = ["Instructor", "TeachingAssistant", "Administrator"];
     const IS_AUTHORIZED = USER_ROLES.some(r => ALLOWED_ROLES.includes(r));	
     let currentJobId = null;
@@ -368,10 +392,12 @@ def render_instructor_ui(
     let defaultPrompt = '';
     let currentPrompt = '';
     let currentGroups = {{}};
+    let currentSubs = [];
     let groupOrder = [];
     let headerNodes = {{}};
     let rowNodes = {{}};
     let sortDir = null;
+    const collapsedGroups = new Set();
 
     let filterState = {{ conf: 'all', op: 'gte', value: null, override: 'all' }};
 
@@ -438,8 +464,11 @@ def render_instructor_ui(
 
     function syncSubmission(submissionId, updated) {{
       for (const uid of groupOrder) {{
-        const sub = currentGroups[uid].find(s => s.submission_id === submissionId);
-        if (sub) {{ Object.assign(sub, updated); return; }}
+        const sub = currentGroups[uid].find(s => String(s.submission_id) === String(submissionId));
+        if (sub) {{
+            Object.assign(sub,updated);
+            return;
+        }}
       }}
     }}
 
@@ -466,6 +495,13 @@ def render_instructor_ui(
       const tmp = document.createElement('div');
       tmp.innerHTML = sNoTags;
       return (tmp.textContent || tmp.innerText || '').trim();
+    }}
+
+    function createEl(tag, cls, text) {{
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text != null) e.textContent = text;
+        return e;
     }}
 
     function showError(elementId, msg) {{
@@ -508,6 +544,7 @@ def render_instructor_ui(
     // returning from a past-job results view so the next grading run starts
     // cleanly without leftover UI from the previous job.
     function resetGradeTab() {{
+        collapsedGroups.clear();
       cameFromHistory = false;
       currentJobId = null;
       document.getElementById('section-quiz').classList.remove('hidden');
@@ -727,6 +764,81 @@ def render_instructor_ui(
             }}
         
 
+    function subUid(sub) {{ 
+        return sub.canvas_user_id || 'unknown'; 
+    }}
+
+    function compareQuestions(a, b) {{
+        const na = Number(a.question_id), nb = Number(b.question_id);
+        if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+        return String(a.question_name || '').localeCompare(
+            String(b.question_name || ''), undefined, {{ numeric: true }});
+    }}
+
+    function computeTotals() {{
+        const totals = {{}};
+        currentSubs.forEach(sub => {{
+            const uid = subUid(sub);
+            if (!totals[uid]){{
+                totals[uid] = {{ score: 0, max: 0, failed: 0 }};
+            }}
+            if (sub.effective_grade != null) totals[uid].score += sub.effective_grade;
+            totals[uid].max += sub.points_possible;
+            if (sub.grading_status === 'FAILED' && sub.effective_grade == null) totals[uid].failed++;
+        }});
+    return totals;
+    }}
+
+    function updateGroupHeader(uid, t) {{
+        const td = headerNodes[uid] && headerNodes[uid].firstElementChild;
+        if (!td) return;
+        td.textContent = '';
+        const chev = document.createElement('span');
+        chev.className = 'chevron';
+        chev.textContent = '\u25be';
+        td.appendChild(chev);
+        td.appendChild(document.createTextNode(
+            ' Student ' + uid + '  \u2014  ' + t.score.toFixed(1) + ' / ' + t.max.toFixed(1) + ' points' +
+            (t.failed ? '  \u26a0 ' + t.failed + ' failed' : '')));
+        }}
+
+    function updateStats() {{
+        const totals = computeTotals();
+        const uids = Object.keys(totals);
+        const questionPoints = {{}};
+        currentSubs.forEach(s => {{ questionPoints[s.question_id] = s.points_possible; }});
+        const maxPoints = Object.values(questionPoints).reduce((a, b) => a + b, 0);
+
+        let percentSum = 0, counted = 0;
+        uids.forEach(uid => {{
+            const t = totals[uid];
+            if (t.max > 0) {{ percentSum += t.score / t.max * 100; counted++; }}
+        }});
+
+        document.getElementById('stat-students').textContent = uids.length;
+        document.getElementById('stat-questions').textContent = Object.keys(questionPoints).length;
+        document.getElementById('stat-avg').textContent =
+            counted > 0 ? (percentSum / counted).toFixed(1) + '%' : '\u2014';
+        document.getElementById('stat-max').textContent =
+            maxPoints > 0 ? maxPoints.toFixed(1) : '\u2014';
+
+        const graded = currentSubs.filter(s => s.effective_grade != null).length;
+        document.getElementById('results-summary').textContent =
+            graded + ' of ' + currentSubs.length + ' answers graded.';
+
+        uids.forEach(uid => updateGroupHeader(uid, totals[uid]));
+    }}
+
+    function toggleGroup(uid) {{
+        const nowCollapsed = collapsedGroups.has(uid);
+        if (nowCollapsed) {{
+            collapsedGroups.delete(uid); 
+            }}
+        else {{
+            collapsedGroups.add(uid);
+            }}
+        applyView();
+    }}
 
     // Fetch all submissions for the current job and render them grouped by
     // student. Computes summary stats (student count, question count, average
@@ -749,6 +861,8 @@ def render_instructor_ui(
 
       if (!subsResp.ok) return;
       const subs = await subsResp.json();
+
+      currentSubs = subs;
       
       currentPrompt = '';
 
@@ -760,7 +874,7 @@ def render_instructor_ui(
       const groups = {{}};
       const order = [];
       subs.forEach(sub => {{
-        const uid = sub.canvas_user_id || 'unknown';
+        const uid = subUid(sub);
         if (!groups[uid]) {{
           groups[uid] = [];
           order.push(uid);
@@ -768,113 +882,79 @@ def render_instructor_ui(
         groups[uid].push(sub);
       }});
 
+      order.forEach(uid => groups[uid].sort(compareQuestions));
       currentGroups = groups;
       groupOrder = order;
-      const totalStudents = order.length;
-      const questionPoints = {{}};
-      subs.forEach(s => {{ questionPoints[s.question_id] = s.points_possible; }});
-      const uniqueQuestions = Object.keys(questionPoints).length;
-      const maxPoints = Object.values(questionPoints).reduce((a, b) => a + b, 0);
-
-      let percentSum = 0;
-      let countedStudents = 0;
-      order.forEach(uid => {{
-        let s = 0, m = 0;
-        groups[uid].forEach(sub => {{
-          if (sub.effective_grade != null) s += sub.effective_grade;
-          m += sub.points_possible;
-        }});
-        if (m > 0) {{
-          percentSum += (s / m * 100);
-          countedStudents++;
-        }}
-      }});
-      const avgPercent = countedStudents > 0
-        ? (percentSum / countedStudents).toFixed(1) + '%' : '\u2014';
-
-      document.getElementById('stat-students').textContent = totalStudents;
-      document.getElementById('stat-questions').textContent = uniqueQuestions;
-      document.getElementById('stat-avg').textContent = avgPercent;
-      document.getElementById('stat-max').textContent = maxPoints > 0
-        ? maxPoints.toFixed(1) : '\u2014';
 
       headerNodes = {{}};
       rowNodes = {{}};
+      
+      const totals = computeTotals();
 
       order.forEach(uid => {{
         const studentSubs = groups[uid];
-        let studentScore = 0;
-        let studentMax = 0;
-        studentSubs.forEach(s => {{
-          if (s.effective_grade != null) studentScore += s.effective_grade;
-          studentMax += s.points_possible;
-        }});
-
         const headerRow = document.createElement('tr');
         headerRow.classList.add('student-header');
+        headerRow.dataset.uid = uid;
+        headerRow.setAttribute('tabindex', 0)
+        headerRow.setAttribute('role','button')
+        headerRow.addEventListener('click', () => toggleGroup(uid));
+        headerRow.addEventListener('keydown', e => {{
+        if (e.key === 'Enter' || e.key === ' ') {{ e.preventDefault(); toggleGroup(uid); }}
+        }});
+        const studentTotals = totals[uid]
         const headerTd = document.createElement('td');
-        headerTd.colSpan = 8;
-        headerTd.textContent = 'Student ' + uid + '  \u2014  ' +
-          studentScore.toFixed(1) + ' / ' + studentMax.toFixed(1) + ' points';
+        headerTd.colSpan = 5;
         headerRow.appendChild(headerTd);
         headerNodes[uid] = headerRow;
+        updateGroupHeader(uid, studentTotals);
 
         studentSubs.forEach(sub => {{
           const tr = document.createElement('tr');
           tr.dataset.submissionId = sub.submission_id;
+          tr.classList.add('student-row');
+          tr.dataset.uid = uid;
           
           if (sub.grading_status === 'FAILED') {{
             tr.classList.add('row-failed');
           }}
-          const tdQ = document.createElement('td');
-          tdQ.textContent = stripHtml(sub.question_name) || ('Q' + sub.question_id);
-          tr.appendChild(tdQ);
+          
+        const tdQA = createEl('td', 'qa-cell');
+        tdQA.appendChild(createEl('div', 'student-tag', 'Student ' + uid));
+        tdQA.appendChild(createEl('div', 'qa-name', stripHtml(sub.question_name) || ('Q' + sub.question_id)));
+        tdQA.appendChild(createEl('div', 'qa-question', stripHtml(sub.question_text) || '\u2014'));
+        tdQA.appendChild(createEl('hr', 'qa-divider'));
+        tdQA.appendChild(createEl('div', 'qa-label', 'Student Answer'));
+        tdQA.appendChild(createEl('div', 'qa-answer', stripHtml(sub.student_answer)));
+        tr.appendChild(tdQA);
 
-          const tag = document.createElement('div');
-          tag.className = 'student-tag';
-          tag.textContent = 'Student ' + uid;
-          tdQ.appendChild(tag);
-
-          const tdQT = document.createElement('td');
-          tdQT.textContent = stripHtml(sub.question_text) || '\u2014';
-          tr.appendChild(tdQT);
-
-          const tdA = document.createElement('td');
-          tdA.textContent = stripHtml(sub.student_answer);
-          tr.appendChild(tdA);
+        const tdCG = createEl('td', 'cg-cell');
         
-          const tdC = document.createElement('td');
-          tdC.id = 'confidence-cell-' + sub.submission_id;
-                    const band = confidenceBand(sub.ai_confidence);
-          if (band) {{
-            const b = document.createElement('span');
-            b.className = 'conf-badge conf-' + band;
-            b.textContent = band.charAt(0).toUpperCase() + band.slice(1) + ' (' + sub.ai_confidence + ')';
-            tdC.appendChild(b);
-          }} else {{
-            tdC.textContent = '\u2014';
-          }}
-          tr.appendChild(tdC);
-          
-          const tdG = document.createElement('td');
-          tdG.id = 'grade-cell-' + sub.submission_id;
-          
-          const hasGradeOverride = sub.instructor_grade != null;
-          const hasFeedbackOverride = sub.instructor_feedback != null && sub.instructor_feedback !== '';
-          const isOverridden = hasGradeOverride || hasFeedbackOverride;
-          if (sub.effective_grade != null) {{
-              tdG.textContent = sub.effective_grade;
-          }} else {{
-              tdG.textContent = '\u2014';
-          }}
-          
-          if (hasGradeOverride) {{
-            const badge = document.createElement('span');
-            badge.className = 'badge-override';
-            badge.textContent = 'edited';
-            tdG.appendChild(badge);
-            }}
-          tr.appendChild(tdG);
+        const hasGradeOverride = sub.instructor_grade != null;
+        const confDiv = createEl('div', 'conf-line');
+        confDiv.id = 'confidence-cell-' + sub.submission_id;
+        confDiv.classList.toggle('hidden', hasGradeOverride);
+        const band = confidenceBand(sub.ai_confidence);
+        if (band) {{
+        confDiv.appendChild(createEl('span', 'conf-badge conf-' + band,
+            band.charAt(0).toUpperCase() + band.slice(1) + ' (' + sub.ai_confidence + ')'));
+        }} else {{
+        confDiv.textContent = '\u2014';
+        }}
+
+        const tdG = createEl('div', 'grade-line');
+        tdG.id = 'grade-cell-' + sub.submission_id;
+
+        const hasFeedbackOverride = sub.instructor_feedback != null && sub.instructor_feedback !== '';
+        const isOverridden = hasGradeOverride || hasFeedbackOverride;
+        tdG.textContent = sub.effective_grade != null ? sub.effective_grade : '\u2014';
+
+        if (hasGradeOverride) {{
+        tdG.appendChild(createEl('span', 'badge-override', 'edited'));
+        }}
+
+        tdCG.append(confDiv, tdG);
+        tr.appendChild(tdCG);
 
           if (sub.grading_status === 'FAILED' && !isOverridden) {{
               const errBadge = document.createElement('span');
@@ -931,10 +1011,9 @@ def render_instructor_ui(
       const retryBtn = document.getElementById('btn-retry-failed');
       retryBtn.style.display = currentJobStatus === 'COMPLETED_WITH_ERRORS' ? 'inline-block' : 'none';
 
-      const graded = subs.filter(s => s.effective_grade != null).length;
-      document.getElementById('results-summary').textContent =
-        graded + ' of ' + subs.length + ' answers graded.';
+      updateStats();
       document.getElementById('section-results').classList.remove('hidden');
+      setupColumnResizing();
     }}
 
     // Load all past grading jobs for this course and render them in the
@@ -1019,7 +1098,7 @@ def render_instructor_ui(
     // and grading-progress sections, surfaces the "Back to Past Jobs" link,
     // and reuses showResults() to render the table.
     async function viewJobResults(jobId, jobName, status) {{
-	  
+        collapsedGroups.clear();	  
       currentJobId = jobId;
       currentJobStatus = status;
       cameFromHistory = true;
@@ -1166,6 +1245,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
 
             const updated = await resp.json();
             syncSubmission(submissionId, updated);
+            updateStats();
             msgEl.textContent = 'Saved.';
             msgEl.style.color = '#006600';
 
@@ -1177,6 +1257,8 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             badge.textContent = 'edited';
             gradeCell.appendChild(badge);
             }}
+            document.getElementById('confidence-cell-' + submissionId)
+            .classList.toggle('hidden', updated.instructor_grade != null);
     
             const feedbackCell = document.getElementById('feedback-cell-' + submissionId);
             feedbackCell.textContent = stripHtml(updated.effective_feedback) || '\u2014';
@@ -1215,7 +1297,7 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
         applyView()
     }}
 
-    async function revertOverride(jobId, submissionId, pointsPossible){{
+    async function revertOverride(jobId, submissionId){{
         if (!confirm('Are you sure you want to revert this override? The AI grade and feedback will be restored.')) {{
             return;
         }}
@@ -1242,12 +1324,14 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             updated.overridden_by = null;
             updated.overridden_at = null;
             syncSubmission(submissionId, updated);
+            updateStats();
             msgEl.textContent = 'Reverted to AI grade.';
             msgEl.style.color = '#006600';
             
             const gradeCell = document.getElementById('grade-cell-' + submissionId);
             gradeCell.textContent = updated.effective_grade != null ? updated.effective_grade : '\u2014';
-
+            
+            document.getElementById('confidence-cell-' + submissionId).classList.remove('hidden');
             document.getElementById('feedback-cell-' + submissionId).textContent =
             stripHtml(updated.effective_feedback) || '\u2014';
 
@@ -1269,12 +1353,96 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
         applyView()
     }}
 
+
+    // Column widths are maintained while the current page is open.
+    let resultsColumnWidths = [360, 180, 80, 320, 260];
+    const resultsColumnMinWidths = [280, 130, 60, 180, 180];
+    const MAX_TABLE_WIDTH = 1600;
+    let columnResizingInitialized = false;
+    function setupColumnResizing() {{
+        const table = document.getElementById('results-table');
+        const container = document.querySelector('.results-table-container');
+        const colgroup = document.getElementById('results-colgroup');
+        const headers = table.querySelectorAll('thead th');
+        const columns = colgroup.querySelectorAll('col');
+
+        if (columnResizingInitialized) return;
+
+        columnResizingInitialized = true;
+
+        function updateColumnWidths() {{
+            resultsColumnWidths.forEach((width, index) => {{
+                columns[index].style.width = width + 'px';
+            }});
+
+            const totalWidth = resultsColumnWidths.reduce(
+                (sum, width) => sum + width, 0
+            );
+
+            table.style.width = Math.min(totalWidth, MAX_TABLE_WIDTH) + 'px';
+        }}
+
+        headers.forEach((header, index) => {{
+            const handle = document.createElement('div');
+            handle.className = 'column-resizer';
+            handle.title = 'Drag to resize column';
+            handle.setAttribute('aria-hidden', 'true');
+
+            header.appendChild(handle);
+
+            handle.addEventListener('pointerdown', (e) => {{
+                e.preventDefault();
+                e.stopPropagation();
+
+                const startX = e.clientX;
+                const startWidth = resultsColumnWidths[index];
+
+                handle.classList.add('dragging');
+
+                function onPointerMove(e) {{
+                    const delta = e.clientX - startX;
+
+                    const otherColumnsWidth = resultsColumnWidths.reduce(
+                        (sum, width, i) => i === index ? sum : sum + width,
+                        0
+                    );
+
+                    const maxWidth = MAX_TABLE_WIDTH - otherColumnsWidth;
+
+                    resultsColumnWidths[index] = Math.max(
+                        resultsColumnMinWidths[index],
+                        Math.min(startWidth + delta, maxWidth)
+                    );
+
+                    updateColumnWidths();
+                }}
+
+                function onPointerUp() {{
+                    handle.classList.remove('dragging');
+
+                    document.removeEventListener(
+                        'pointermove', onPointerMove
+                    );
+
+                    document.removeEventListener(
+                        'pointerup', onPointerUp
+                    );
+                }};
+
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', onPointerUp);
+            }});
+        }});
+
+        updateColumnWidths();
+    }}
+
     function applyView() {{
         const tbody = document.getElementById('results-tbody');
         const table = document.getElementById('results-table');
         tbody.innerHTML = '';
 
-        const flat = sortDir !== null;
+        const flat = sortDir !== null || filterState.conf !== 'all' || filterState.override !== 'all';
         table.classList.toggle('flat-view', flat);
         let shown = 0, total = 0;
 
@@ -1282,9 +1450,16 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
             groupOrder.forEach(uid => {{
                 total += currentGroups[uid].length;
                 const matches = currentGroups[uid].filter(matchesFilters);
-                if (matches.length === 0) return;      // hide students with no matches
+                if (matches.length === 0) return;
+                const collapsed = collapsedGroups.has(uid);
+                headerNodes[uid].classList.toggle('collapsed', collapsed);
+                headerNodes[uid].setAttribute('aria-expanded', String(!collapsed));
                 tbody.appendChild(headerNodes[uid]);
-                matches.forEach(sub => tbody.appendChild(rowNodes[sub.submission_id]));
+                matches.forEach(sub => {{
+                    const r = rowNodes[sub.submission_id];
+                    r.classList.toggle('hidden', collapsed);
+                    tbody.appendChild(r);
+                }});
                 shown += matches.length;
             }});
         }} else {{
@@ -1293,21 +1468,27 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
                 total++;
                 if (matchesFilters(sub)) all.push(sub);
             }}));
-            all.sort((a, b) => {{
-                const ca = a.ai_confidence, cb = b.ai_confidence;
-                if (ca == null && cb == null) return 0;
-                if (ca == null) return 1;
-                if (cb == null) return -1;
-                return sortDir === 'asc' ? ca - cb : cb - ca;
+            if(sortDir != null) {{
+                all.sort((a, b) => {{
+                    const ca = a.ai_confidence, cb = b.ai_confidence;
+                    if (ca == null && cb == null) return 0;
+                    if (ca == null) return 1;
+                    if (cb == null) return -1;
+                    return sortDir === 'asc' ? ca - cb : cb - ca;
+                }});
+            }}
+            all.forEach(sub => {{
+            const r = rowNodes[sub.submission_id];
+            r.classList.remove('hidden');   
+            tbody.appendChild(r);
             }});
-            all.forEach(sub => tbody.appendChild(rowNodes[sub.submission_id]));
             shown = all.length;
         }}
 
         if (shown === 0 && total > 0) {{
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 8;
+            td.colSpan = 5;
             td.textContent = 'No answers match the current filters.';
             tr.appendChild(td);
             tbody.appendChild(tr);

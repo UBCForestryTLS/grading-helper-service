@@ -113,10 +113,10 @@ class TestConfidenceUI:
         assert cls in _render()
 
     def test_confidence_column_header(self):
-        assert "<th>AI Confidence</th>" in _render()
+        assert "<th>AI Confidence / Grade</th>" in _render()
 
-    def test_student_header_spans_all_eight_columns(self):
-        assert "headerTd.colSpan = 8" in _render()
+    def test_student_header_spans_all_five_columns(self):
+        assert "headerTd.colSpan = 5" in _render()
 
     @pytest.mark.parametrize(
         "element_id",
@@ -138,8 +138,8 @@ class TestConfidenceUI:
         [
             "function applyView",
             "function matchesFilters",
-            "function matchesConfidence",
-            "function matchesOverride",
+            "function matchesConfidenceFilter",
+            "function matchesOverrideFilter",
             "function isOverridden",
             "function clearFilters",
             "function syncSubmission",
@@ -166,7 +166,7 @@ class TestConfidenceUI:
     def test_view_controls_wrap(self):
         assert "flex-wrap: wrap" in _render()
 
-    def test_override_column_css_targets_column_8(self):
+    def test_override_column_css_targets_column_4(self):
         html = _render()
-        assert "td:nth-child(8)" in html
+        assert "td:nth-child(4)" in html
         assert "td:nth-child(7)" not in html
