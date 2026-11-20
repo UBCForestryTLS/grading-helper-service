@@ -48,6 +48,16 @@ def render_instructor_ui(
     table {{ width: 100%; border-collapse: collapse; font-size: 0.9em; }}
     th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #eee; }}
     th {{ background: #f0f0f0; font-weight: 600; }}
+    .results-table-container {{width: 100%; overflow-x: auto;}}
+    #results-table {{table-layout: fixed; width: 1200px; min-width: 100%; }}
+    #results-table th {{position: relative; }}
+    #results-table td {{overflow-wrap: anywhere; }}
+    #results-table th,
+    #results-table td {{ border-right: 1px solid #cbd5e1;}}
+    #results-table .column-resizer {{position: absolute; top: 0; right: -5px; width: 10px; height: 100%; cursor: col-resize; user-select: none; touch-action: none; z-index: 5; }}
+    #results-table .column-resizer::after {{ content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%); background: transparent;}}
+    #results-table .column-resizer:hover::after,
+    #results-table .column-resizer.dragging::after {{background: #0066cc;}}
     .badge {{ display: inline-block; padding: 2px 8px; border-radius: 12px;
               font-size: 0.8em; font-weight: 600; }}
     .badge-pending {{ background: #fff3cd; color: #856404; }}
@@ -117,7 +127,7 @@ def render_instructor_ui(
     .btn-revert:hover {{ background: #990000; }}
     tr.row-failed {{ background: #fff5f5; }}
     tr.row-failed td {{ border-bottom-color: #f5c6cb; }}
-    .qa-cell {{ min-width: 280px; max-width: 360px; word-break: break-word; vertical-align: top; }}
+    .qa-cell {{ word-break: break-word; vertical-align: top; }}
     .qa-name {{ font-weight: 700; margin-bottom: 4px; }}
     .qa-question {{ font-style: italic; color: #444; }}
     .qa-divider {{ border: 0; border-top: 1px solid #333; margin: 12px 0; }}
@@ -126,7 +136,7 @@ def render_instructor_ui(
     .conf-line {{ margin-bottom: 8px; }}
     .grade-line {{ font-weight: 600; }}
     #results-table th:nth-child(2) {{text-align: center;}}
-    #results-table td:nth-child(4) {{ max-width: 250px; word-break: break-word; }}
+    #results-table td:nth-child(4) {{ word-break: break-word; }}
     #history-table tbody tr:hover {{ background: #f8f8f8; }}
     .prompt-section {{
         margin: 16px 0;
@@ -320,18 +330,27 @@ def render_instructor_ui(
         <button class="btn-link" onclick="clearFilters()">Clear filters</button>
         <span id="view-count" class="status"></span>
       </div>
-      <table id="results-table">
-        <thead>
-          <tr>
-            <th>Question / Student Answer</th>
-            <th>AI Confidence / Grade</th>
-            <th>Max</th>
-            <th>Feedback</th>
-            <th>Override</th>
-          </tr>
-        </thead>
-        <tbody id="results-tbody"></tbody>
-      </table>
+      <div class="results-table-container">
+        <table id="results-table">
+            <colgroup id="results-colgroup">
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            </colgroup>
+            <thead>
+            <tr>
+                <th>Question / Student Answer</th>
+                <th>AI Confidence / Grade</th>
+                <th>Max</th>
+                <th>Feedback</th>
+                <th>Override</th>
+            </tr>
+            </thead>
+            <tbody id="results-tbody"></tbody>
+        </table>
+        </div>
       <br>
       <button id="btn-passback" onclick="pushGrades()">Push Grades to Canvas</button>
       <button id="btn-retry-failed" style="display:none;" onclick="retryFailed()">Retry Failed Submissions</button>
@@ -749,6 +768,13 @@ def render_instructor_ui(
         return sub.canvas_user_id || 'unknown'; 
     }}
 
+    function compareQuestions(a, b) {{
+        const na = Number(a.question_id), nb = Number(b.question_id);
+        if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+        return String(a.question_name || '').localeCompare(
+            String(b.question_name || ''), undefined, {{ numeric: true }});
+    }}
+
     function computeTotals() {{
         const totals = {{}};
         currentSubs.forEach(sub => {{
@@ -856,6 +882,7 @@ def render_instructor_ui(
         groups[uid].push(sub);
       }});
 
+      order.forEach(uid => groups[uid].sort(compareQuestions));
       currentGroups = groups;
       groupOrder = order;
 
@@ -986,6 +1013,7 @@ def render_instructor_ui(
 
       updateStats();
       document.getElementById('section-results').classList.remove('hidden');
+      setupColumnResizing();
     }}
 
     // Load all past grading jobs for this course and render them in the
@@ -1323,6 +1351,90 @@ document.getElementById('btn-cancel-grading').addEventListener('click', async ()
         }}
 
         applyView()
+    }}
+
+
+    // Column widths are maintained while the current page is open.
+    let resultsColumnWidths = [360, 180, 80, 320, 260];
+    const resultsColumnMinWidths = [280, 130, 60, 180, 180];
+    const MAX_TABLE_WIDTH = 1600;
+    let columnResizingInitialized = false;
+    function setupColumnResizing() {{
+        const table = document.getElementById('results-table');
+        const container = document.querySelector('.results-table-container');
+        const colgroup = document.getElementById('results-colgroup');
+        const headers = table.querySelectorAll('thead th');
+        const columns = colgroup.querySelectorAll('col');
+
+        if (columnResizingInitialized) return;
+
+        columnResizingInitialized = true;
+
+        function updateColumnWidths() {{
+            resultsColumnWidths.forEach((width, index) => {{
+                columns[index].style.width = width + 'px';
+            }});
+
+            const totalWidth = resultsColumnWidths.reduce(
+                (sum, width) => sum + width, 0
+            );
+
+            table.style.width = Math.min(totalWidth, MAX_TABLE_WIDTH) + 'px';
+        }}
+
+        headers.forEach((header, index) => {{
+            const handle = document.createElement('div');
+            handle.className = 'column-resizer';
+            handle.title = 'Drag to resize column';
+            handle.setAttribute('aria-hidden', 'true');
+
+            header.appendChild(handle);
+
+            handle.addEventListener('pointerdown', (e) => {{
+                e.preventDefault();
+                e.stopPropagation();
+
+                const startX = e.clientX;
+                const startWidth = resultsColumnWidths[index];
+
+                handle.classList.add('dragging');
+
+                function onPointerMove(e) {{
+                    const delta = e.clientX - startX;
+
+                    const otherColumnsWidth = resultsColumnWidths.reduce(
+                        (sum, width, i) => i === index ? sum : sum + width,
+                        0
+                    );
+
+                    const maxWidth = MAX_TABLE_WIDTH - otherColumnsWidth;
+
+                    resultsColumnWidths[index] = Math.max(
+                        resultsColumnMinWidths[index],
+                        Math.min(startWidth + delta, maxWidth)
+                    );
+
+                    updateColumnWidths();
+                }}
+
+                function onPointerUp() {{
+                    handle.classList.remove('dragging');
+
+                    document.removeEventListener(
+                        'pointermove', onPointerMove
+                    );
+
+                    document.removeEventListener(
+                        'pointerup', onPointerUp
+                    );
+                }};
+
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', onPointerUp);
+            }});
+        }});
+
+        updateColumnWidths();
     }}
 
     function applyView() {{

@@ -147,3 +147,53 @@ def test_override_elsewhere_keeps_group_collapsed(app):
     expect(app.locator("#stat-avg")).to_have_text("72.5%")
     for r in rows(app, "A").all():
         expect(r).to_be_hidden()
+
+
+def _load_job(page: Page, sub_list):
+    """Serve a custom submission list for job1 and open its results."""
+    html = render_instructor_ui(
+        launch_id="L1",
+        session_token="tok",
+        base_url=BASE,
+        user_name="T",
+        course_title="C",
+        roles=["Instructor"],
+    )
+
+    def handle(route):
+        path = route.request.url.replace(BASE, "")
+        if path == "/":
+            return route.fulfill(status=200, content_type="text/html", body=html)
+        if path == "/jobs/job1":
+            return route.fulfill(json={"status": "COMPLETED", "effective_prompt": "p"})
+        if path == "/jobs/job1/submissions":
+            return route.fulfill(json=sub_list)
+        return route.fulfill(status=404, json={"detail": "not mocked: " + path})
+
+    page.route(f"{BASE}/**", handle)
+    page.goto(BASE + "/")
+    page.evaluate("viewJobResults('job1', 'Job 1', 'COMPLETED')")
+    expect(page.locator("tr.student-row").first).to_be_visible()
+
+
+@pytest.mark.parametrize(
+    "qids, expected",
+    [
+        # Numeric ids: 9 / 10 / 100 also catches string sorting ("10" < "100" < "9").
+        ([100, 9, 10], ["9", "10", "100"]),
+        # Non-numeric ids (like your fixture's "q1"): falls back to question_name,
+        # numerically ("Q9" < "Q10" < "Q100").
+        (["q100", "q9", "q10"], ["9", "10", "100"]),
+    ],
+)
+def test_questions_sorted_ascending_within_each_student(page, qids, expected):
+    subs = []
+    for uid in ("A", "B"):
+        for qid in qids:  # deliberately shuffled
+            subs.append(_sub(f"{uid}-{qid}", uid, qid, 5))
+    _load_job(page, subs)
+
+    for uid in ("A", "B"):
+        ids = rows(page, uid).evaluate_all("rs => rs.map(r => r.dataset.submissionId)")
+        got = [i.split("-", 1)[1].lstrip("q") for i in ids]
+        assert got == expected, f"student {uid}: {ids}"
